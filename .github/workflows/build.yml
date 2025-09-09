@@ -20,9 +20,6 @@ jobs:
           - os: macos-latest
             artifact_name: redactor-macos
             asset_name: redactor-macos
-          - os: ubuntu-latest
-            artifact_name: redactor-linux
-            asset_name: redactor-linux
 
     runs-on: ${{ matrix.os }}
     
@@ -35,11 +32,6 @@ jobs:
       with:
         python-version: '3.9'
 
-    - name: Install system dependencies (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
 
     - name: Install Python dependencies
       run: |
@@ -57,10 +49,6 @@ jobs:
       run: |
         pyinstaller --onefile --windowed --name=redactor-macos redactor-gui.py
 
-    - name: Build executable (Linux)
-      if: runner.os == 'Linux'
-      run: |
-        pyinstaller --onefile --windowed --name=redactor-linux redactor-gui.py
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -69,7 +57,6 @@ jobs:
         path: |
           dist/redactor-windows.exe
           dist/redactor-macos
-          dist/redactor-linux
 
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/v')
@@ -78,6 +65,5 @@ jobs:
         files: |
           dist/redactor-windows.exe
           dist/redactor-macos
-          dist/redactor-linux
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
