@@ -1,0 +1,83 @@
+name: Build Cross-Platform Executables
+
+on:
+  push:
+    branches: [ main, master ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: redactor-windows
+            asset_name: redactor-windows.exe
+          - os: macos-latest
+            artifact_name: redactor-macos
+            asset_name: redactor-macos
+          - os: ubuntu-latest
+            artifact_name: redactor-linux
+            asset_name: redactor-linux
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.9'
+
+    - name: Install system dependencies (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pywebview pyinstaller
+
+    - name: Build executable (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        pyinstaller --onefile --windowed --name=redactor-windows redactor-gui.py
+      
+    - name: Build executable (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        pyinstaller --onefile --windowed --name=redactor-macos redactor-gui.py
+
+    - name: Build executable (Linux)
+      if: runner.os == 'Linux'
+      run: |
+        pyinstaller --onefile --windowed --name=redactor-linux redactor-gui.py
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: |
+          dist/redactor-windows.exe
+          dist/redactor-macos
+          dist/redactor-linux
+
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/v')
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/redactor-windows.exe
+          dist/redactor-macos
+          dist/redactor-linux
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
