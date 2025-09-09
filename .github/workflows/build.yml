@@ -65,8 +65,32 @@ jobs:
       with:
         files: |
           dist/${{ matrix.asset_name }}
-        generate_release_notes: true
+        generate_release_notes: false
         draft: false
         prerelease: false
+        make_latest: true
+        body: |
+          ## Financial Document Redactor v${{ github.ref_name }}
+          
+          **Ready-to-use executables - no installation required!**
+          
+          ### Download:
+          - 🪟 **Windows**: `redactor-windows.exe`
+          - 🍎 **macOS**: `redactor-macos`
+          
+          ### Features:
+          - ✅ PDF redaction with multiple modes (generic/realistic/custom)
+          - ✅ Support for bank statements, W2s, tax returns, pay stubs
+          - ✅ Redacts SSN, account numbers, names, addresses
+          - ✅ Professional GUI interface
+          - ✅ Real-time processing with detailed reporting
+          
+          ### Usage:
+          1. Download the appropriate executable for your OS
+          2. Double-click to run (no installation needed)
+          3. Select PDF files and output folder
+          4. Choose redaction mode and process!
+          
+          **Note**: This release contains only executables, no source code.
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
