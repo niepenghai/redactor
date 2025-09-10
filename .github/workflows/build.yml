@@ -123,4 +123,4 @@ jobs:
             });
           }
           
-          console.log(`Removed ${sourceAssets.length} source code assets`);:
+          console.log(`Removed ${sourceAssets.length} source code assets`);
