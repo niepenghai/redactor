@@ -8,6 +8,11 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write  # Required for creating releases and uploading assets
+  packages: write  # Required for packages (if needed)
+  actions: read    # Required for accessing workflow runs
+
 jobs:
   build:
     strategy:
