@@ -59,17 +59,13 @@ jobs:
           dist/redactor-macos
 
 
-    - name: Create Release
+    - name: Upload Release Asset
       if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
-        files: |
-          dist/${{ matrix.asset_name }}
-        generate_release_notes: false
-        draft: false
-        prerelease: false
+        files: dist/${{ matrix.asset_name }}
         body: |
-          ## Financial Document Redactor v${{ github.ref_name }}
+          ## Financial Document Redactor ${{ github.ref_name }}
           
           **Ready-to-use executables - no installation required!**
           
