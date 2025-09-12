@@ -75,8 +75,15 @@ jobs:
           **Ready-to-use executables - no installation required!**
           
           ### Download:
-          - 🪟 **Windows**: `redactor-windows.exe`
-          - 🍎 **macOS**: `redactor-macos`
+          - 🪟 **Windows**: `redactor-windows.exe` - Double-click to run
+          - 🍎 **macOS**: `redactor-macos` - Right-click → Open (first time only)
+          
+          ### 🍎 macOS Security Notice:
+          Since this app is not signed with an Apple Developer certificate, macOS will show a security warning. To open safely:
+          1. Right-click on `redactor-macos` 
+          2. Select "Open" from context menu
+          3. Click "Open" in the dialog
+          4. Or use Terminal: `xattr -d com.apple.quarantine ./redactor-macos`
           
           ### Features:
           - ✅ PDF redaction with multiple modes (generic/realistic/custom)
