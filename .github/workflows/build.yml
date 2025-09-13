@@ -48,6 +48,26 @@ jobs:
       if: runner.os == 'Windows'
       run: |
         pyinstaller --onefile --windowed --name=redactor-windows redactor-gui.py
+        
+    - name: Create Windows Deployment Package
+      if: runner.os == 'Windows'
+      run: |
+        # Create deployment folder
+        mkdir windows-deployment-package
+        
+        # Copy executable
+        copy dist\redactor-windows.exe windows-deployment-package\
+        
+        # Copy deployment files
+        copy windows-deployment\README_Windows.md windows-deployment-package\
+        copy windows-deployment\启动程序.bat windows-deployment-package\
+        copy windows-deployment\部署说明.txt windows-deployment-package\
+        
+        # Create output folder
+        mkdir windows-deployment-package\输出文件
+        
+        # Create zip package
+        powershell Compress-Archive -Path windows-deployment-package\* -DestinationPath dist\PDF-Redactor-Windows-Offline.zip
       
     - name: Build executable (macOS)
       if: runner.os == 'macOS'
@@ -74,9 +94,18 @@ jobs:
           
           **Ready-to-use executables - no installation required!**
           
-          ### Download:
-          - 🪟 **Windows**: `redactor-windows.exe` - Double-click to run
+          ### Download Options:
+          - 🪟 **Windows**: 
+            - `redactor-windows.exe` - Single executable file
+            - `PDF-Redactor-Windows-Offline.zip` - Complete offline package with documentation
           - 🍎 **macOS**: `redactor-macos` - Right-click → Open (first time only)
+          
+          ### 🪟 Windows Offline Users:
+          Download `PDF-Redactor-Windows-Offline.zip` for complete offline deployment:
+          - ✅ Main executable + startup script
+          - ✅ Chinese documentation and user guide  
+          - ✅ No internet required
+          - ✅ Perfect for corporate/restricted environments
           
           ### 🍎 macOS Security Notice:
           Since this app is not signed with an Apple Developer certificate, macOS will show a security warning. To open safely:
@@ -99,6 +128,12 @@ jobs:
           4. Choose redaction mode and process!
           
           **Note**: This release contains only executables, no source code.
+        
+    - name: Upload Windows Deployment Package
+      if: startsWith(github.ref, 'refs/tags/v') && runner.os == 'Windows'
+      uses: softprops/action-gh-release@v1
+      with:
+        files: dist/PDF-Redactor-Windows-Offline.zip
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
