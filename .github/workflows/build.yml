@@ -52,7 +52,7 @@ jobs:
     - name: Build executable (macOS)
       if: runner.os == 'macOS'
       run: |
-        pyinstaller --onefile --windowed --name=redactor-macos redactor-gui.py
+        pyinstaller --onefile --name=redactor-macos redactor-gui.py
 
 
     - name: Upload artifacts
