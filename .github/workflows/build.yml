@@ -109,15 +109,19 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         echo "Building macOS executable using spec file..."
-        # Use the same spec file as local build
-        pyinstaller redactor.spec
+        # Use the same spec file as local build from project root
+        pyinstaller scripts/redactor.spec
         
-        # Copy the app to expected location for release
+        # Copy both the app bundle and standalone executable
         cp -r dist/PDFRedactor.app/Contents/MacOS/PDFRedactor dist/redactor-macos
         
+        # Create zip of PDFRedactor.app for release
+        cd dist/
+        zip -r PDFRedactor-macOS.zip PDFRedactor.app
+        
         echo "macOS build completed:"
-        ls -la dist/
-        du -h dist/redactor-macos
+        ls -la
+        du -h redactor-macos PDFRedactor.app PDFRedactor-macOS.zip
 
 
     - name: Upload artifacts
@@ -127,13 +131,17 @@ jobs:
         path: |
           dist/redactor-windows.exe
           dist/redactor-macos
+          dist/PDFRedactor.app
+          dist/PDFRedactor-macOS.zip
 
 
     - name: Upload Release Asset
       if: startsWith(github.ref, 'refs/tags/v')
       uses: softprops/action-gh-release@v1
       with:
-        files: dist/${{ matrix.asset_name }}
+        files: |
+          dist/${{ matrix.asset_name }}
+          dist/PDFRedactor-macOS.zip
         body: |
           ## Financial Document Redactor ${{ github.ref_name }}
           
@@ -143,7 +151,9 @@ jobs:
           - 🪟 **Windows**: 
             - `redactor-windows.exe` - Single executable file
             - `PDF-Redactor-Windows-Offline.zip` - Complete offline package with documentation
-          - 🍎 **macOS**: `redactor-macos` - Right-click → Open (first time only)
+          - 🍎 **macOS**: 
+            - `PDFRedactor-macOS.zip` - Native macOS application bundle (recommended)
+            - `redactor-macos` - Standalone executable
           
           ### 🪟 Windows Offline Users:
           Download `PDF-Redactor-Windows-Offline.zip` for complete offline deployment:
@@ -152,12 +162,15 @@ jobs:
           - ✅ No internet required
           - ✅ Perfect for corporate/restricted environments
           
-          ### 🍎 macOS Security Notice:
-          Since this app is not signed with an Apple Developer certificate, macOS will show a security warning. To open safely:
-          1. Right-click on `redactor-macos` 
-          2. Select "Open" from context menu
-          3. Click "Open" in the dialog
-          4. Or use Terminal: `xattr -d com.apple.quarantine ./redactor-macos`
+          ### 🍎 macOS Usage Instructions:
+          **For PDFRedactor-macOS.zip (recommended):**
+          1. Download and unzip `PDFRedactor-macOS.zip`
+          2. Double-click `PDFRedactor.app` to run
+          3. If security warning appears: Right-click → "Open" → "Open"
+          
+          **For redactor-macos (alternative):**
+          1. Right-click on `redactor-macos` → "Open" → "Open"
+          2. Or use Terminal: `xattr -d com.apple.quarantine ./redactor-macos`
           
           ### Features:
           - ✅ PDF redaction with multiple modes (generic/realistic/custom)

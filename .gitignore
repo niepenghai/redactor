@@ -54,7 +54,6 @@ output/
 
 # PyInstaller
 *.manifest
-*.spec
 
 # Testing
 .pytest_cache/
@@ -64,3 +63,7 @@ htmlcov/
 # Logs
 *.log
 logs/
+
+# Additional build artifacts
+*.app
+PDFRedactor.app/
