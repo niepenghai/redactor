@@ -2,7 +2,8 @@
 
 ## 文件说明
 
-- `redactor.spec` - PyInstaller 规格文件 (主要构建配置)
+- `redactor.spec` - PyInstaller 规格文件 (macOS构建配置)
+- `redactor-windows.spec` - PyInstaller 规格文件 (Windows构建配置)
 - `build-local.sh` - 本地构建脚本 (与CI一致)
 - `build-simple.sh` - 简单构建脚本 (快速测试用)
 

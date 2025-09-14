@@ -54,8 +54,13 @@ jobs:
     - name: Build executable (Windows)
       if: runner.os == 'Windows'
       run: |
-        echo "Building Windows executable..."
-        pyinstaller --onefile --windowed --name=redactor-windows --hidden-import=fitz --hidden-import=pymupdf --hidden-import=PIL --hidden-import=PIL.Image --hidden-import=numpy --hidden-import=spacy --hidden-import=tkinter --hidden-import=tkinter.ttk --hidden-import=tkinter.filedialog --hidden-import=tkinter.messagebox --hidden-import=tkinter.scrolledtext --hidden-import=threading --hidden-import=re --hidden-import=os --hidden-import=sys --hidden-import=json --hidden-import=typing --hidden-import=pathlib --hidden-import=tempfile --hidden-import=shutil --hidden-import=random --hidden-import=hashlib --hidden-import=dataclasses --collect-all=fitz --collect-all=pymupdf --collect-all=PIL --collect-all=numpy redactor-gui.py
+        echo "Building Windows executable using spec file..."
+        # Use Windows-specific spec file for consistent builds
+        pyinstaller scripts/redactor-windows.spec
+        
+        echo "Windows build completed:"
+        dir dist\
+        powershell -Command "'{0:N2} MB' -f ((Get-Item dist\redactor-windows.exe).Length / 1MB)"
         
     - name: Create Windows Deployment Package
       if: runner.os == 'Windows'
