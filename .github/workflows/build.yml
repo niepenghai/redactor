@@ -43,11 +43,47 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
         pip install pywebview pyinstaller
+        
+        # Verify PyMuPDF installation
+        python -c "import fitz; print(f'PyMuPDF version: {fitz.version[0]}')"
+        python -c "import tkinter; print('Tkinter available')"
+        
+        # List installed packages for debugging
+        pip list | grep -E "(pymupdf|tkinter|pywebview)"
 
     - name: Build executable (Windows)
       if: runner.os == 'Windows'
       run: |
-        pyinstaller --onefile --windowed --name=redactor-windows redactor-gui.py
+        echo "Building Windows executable..."
+        pyinstaller --onefile --windowed --name=redactor-windows ^
+        --hidden-import=fitz ^
+        --hidden-import=pymupdf ^
+        --hidden-import=PIL ^
+        --hidden-import=PIL.Image ^
+        --hidden-import=numpy ^
+        --hidden-import=spacy ^
+        --hidden-import=tkinter ^
+        --hidden-import=tkinter.ttk ^
+        --hidden-import=tkinter.filedialog ^
+        --hidden-import=tkinter.messagebox ^
+        --hidden-import=tkinter.scrolledtext ^
+        --hidden-import=threading ^
+        --hidden-import=re ^
+        --hidden-import=os ^
+        --hidden-import=sys ^
+        --hidden-import=json ^
+        --hidden-import=typing ^
+        --hidden-import=pathlib ^
+        --hidden-import=tempfile ^
+        --hidden-import=shutil ^
+        --hidden-import=random ^
+        --hidden-import=hashlib ^
+        --hidden-import=dataclasses ^
+        --collect-all=fitz ^
+        --collect-all=pymupdf ^
+        --collect-all=PIL ^
+        --collect-all=numpy ^
+        redactor-gui.py
         
     - name: Create Windows Deployment Package
       if: runner.os == 'Windows'
@@ -72,7 +108,36 @@ jobs:
     - name: Build executable (macOS)
       if: runner.os == 'macOS'
       run: |
-        pyinstaller --onefile --name=redactor-macos redactor-gui.py
+        echo "Building macOS executable..."
+        pyinstaller --onefile --name=redactor-macos \
+        --hidden-import=fitz \
+        --hidden-import=pymupdf \
+        --hidden-import=PIL \
+        --hidden-import=PIL.Image \
+        --hidden-import=numpy \
+        --hidden-import=spacy \
+        --hidden-import=tkinter \
+        --hidden-import=tkinter.ttk \
+        --hidden-import=tkinter.filedialog \
+        --hidden-import=tkinter.messagebox \
+        --hidden-import=tkinter.scrolledtext \
+        --hidden-import=threading \
+        --hidden-import=re \
+        --hidden-import=os \
+        --hidden-import=sys \
+        --hidden-import=json \
+        --hidden-import=typing \
+        --hidden-import=pathlib \
+        --hidden-import=tempfile \
+        --hidden-import=shutil \
+        --hidden-import=random \
+        --hidden-import=hashlib \
+        --hidden-import=dataclasses \
+        --collect-all=fitz \
+        --collect-all=pymupdf \
+        --collect-all=PIL \
+        --collect-all=numpy \
+        redactor-gui.py
 
 
     - name: Upload artifacts
