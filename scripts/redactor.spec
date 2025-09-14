@@ -11,7 +11,6 @@ a = Analysis(
     pathex=[current_dir],
     binaries=[],
     datas=[
-        ('../config.json', '.'),
         ('../core', 'core'),
         ('../utils', 'utils'),
         ('../config', 'config'),
