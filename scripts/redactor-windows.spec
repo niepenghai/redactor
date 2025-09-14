@@ -16,6 +16,7 @@ a = Analysis(
         ('../config', 'config'),
         ('../docs', 'docs'),
     ],
+    collect_all=['fitz', 'pymupdf', 'PIL', 'numpy', 'spacy'],
     hiddenimports=[
         'spacy',
         'en_core_web_sm',

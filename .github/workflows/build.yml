@@ -49,7 +49,14 @@ jobs:
         python -c "import tkinter; print('Tkinter available')"
         
         # List installed packages for debugging
-        pip list | grep -E "(pymupdf|tkinter|pywebview)"
+        echo "=== Checking key packages ==="
+        pip list | grep -E "(pymupdf|tkinter|pywebview|spacy|pillow|numpy)"
+        echo "=== Full package list ==="
+        pip list
+        echo "=== Testing imports ==="
+        python -c "import spacy; print('spaCy available')" || echo "spaCy not available"
+        python -c "import PIL; print('PIL available')" || echo "PIL not available"  
+        python -c "import numpy; print('NumPy available')" || echo "NumPy not available"
 
     - name: Build executable (Windows)
       if: runner.os == 'Windows'
@@ -60,7 +67,12 @@ jobs:
         
         echo "Windows build completed:"
         dir dist\
+        echo "=== Contents of redactor-windows folder ==="
         dir dist\redactor-windows\
+        echo "=== Contents of _internal folder ==="
+        dir dist\redactor-windows\_internal\ | head -20
+        echo "=== Total size breakdown ==="
+        powershell -Command "Get-ChildItem dist\redactor-windows -Recurse | Group-Object Extension | Sort-Object Count -Descending | Select-Object Name, Count, @{Name='Size(MB)';Expression={[math]::Round((($_.Group | Measure-Object Length -Sum).Sum / 1MB), 2)}} | Format-Table"
         powershell -Command "'{0:N2} MB' -f ((Get-ChildItem dist\redactor-windows -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB)"
         
     - name: Create Windows Deployment Package
