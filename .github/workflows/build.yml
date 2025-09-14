@@ -57,6 +57,8 @@ jobs:
         pip install pyinstaller
       shell: bash
         
+    - name: Verify dependencies
+      run: |
         # Verify PyMuPDF installation
         python -c "import fitz; print(f'PyMuPDF version: {fitz.version[0]}')"
         python -c "import tkinter; print('Tkinter available')"
