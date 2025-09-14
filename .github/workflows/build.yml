@@ -43,18 +43,19 @@ jobs:
         python -m pip install --upgrade pip
         pip install wheel setuptools
         
-        # Install core dependencies first
-        pip install numpy>=1.21.0
-        pip install pillow>=9.0.0
-        pip install PyMuPDF>=1.23.0
+        # Clear pip cache to avoid stale references
+        pip cache purge
         
-        # Note: spaCy not installed on Windows due to compilation issues
-        # The application will automatically use simple NLP fallback
+        # Use platform-specific requirements
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          pip install -r requirements-windows.txt
+        else
+          pip install -r requirements.txt
+          python -m spacy download en_core_web_sm
+        fi
         
-        # Install remaining dependencies
-        pip install pywebview>=4.0
-        pip install dataclasses-json>=0.5.0
         pip install pyinstaller
+      shell: bash
         
         # Verify PyMuPDF installation
         python -c "import fitz; print(f'PyMuPDF version: {fitz.version[0]}')"
