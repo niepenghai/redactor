@@ -9,9 +9,9 @@ echo 正在启动程序，请稍候...
 echo.
 
 REM 检查可执行文件是否存在
-if not exist "redactor-windows.exe" (
-    echo 错误：未找到 redactor-windows.exe 文件
-    echo 请确保文件在同一目录下
+if not exist "redactor-windows\redactor-windows.exe" (
+    echo 错误：未找到 redactor-windows\redactor-windows.exe 文件
+    echo 请确保程序文件夹在同一目录下
     echo.
     pause
     exit /b 1
@@ -19,7 +19,7 @@ if not exist "redactor-windows.exe" (
 
 REM 启动程序
 echo 启动中...
-start "" "redactor-windows.exe"
+start "" "redactor-windows\redactor-windows.exe"
 
 REM 等待一下再退出
 timeout /t 3 /nobreak > nul

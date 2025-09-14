@@ -60,7 +60,8 @@ jobs:
         
         echo "Windows build completed:"
         dir dist\
-        powershell -Command "'{0:N2} MB' -f ((Get-Item dist\redactor-windows.exe).Length / 1MB)"
+        dir dist\redactor-windows\
+        powershell -Command "'{0:N2} MB' -f ((Get-ChildItem dist\redactor-windows -Recurse | Measure-Object -Property Length -Sum).Sum / 1MB)"
         
     - name: Create Windows Deployment Package
       if: runner.os == 'Windows'
@@ -68,8 +69,8 @@ jobs:
         # Create deployment folder
         mkdir windows-deployment-package
         
-        # Copy executable
-        copy dist\redactor-windows.exe windows-deployment-package\
+        # Copy entire redactor-windows folder (now contains exe + _internal)
+        xcopy dist\redactor-windows windows-deployment-package\redactor-windows /E /I
         
         # Copy deployment files
         copy windows-deployment\README_Windows.md windows-deployment-package\
