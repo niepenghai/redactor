@@ -107,10 +107,11 @@ jobs:
       with:
         name: ${{ matrix.artifact_name }}
         path: |
-          dist/redactor-windows.exe
+          dist/redactor-windows/
           dist/redactor-macos
           dist/PDFRedactor.app
           dist/PDFRedactor-macOS.zip
+          dist/PDF-Redactor-Windows-Offline.zip
 
 
     - name: Upload Release Asset
@@ -120,6 +121,7 @@ jobs:
         files: |
           dist/${{ matrix.asset_name }}
           dist/PDFRedactor-macOS.zip
+          dist/PDF-Redactor-Windows-Offline.zip
         body: |
           ## Financial Document Redactor ${{ github.ref_name }}
           
@@ -127,8 +129,7 @@ jobs:
           
           ### Download Options:
           - 🪟 **Windows**: 
-            - `redactor-windows.exe` - Single executable file
-            - `PDF-Redactor-Windows-Offline.zip` - Complete offline package with documentation
+            - `PDF-Redactor-Windows-Offline.zip` - Complete offline package with all dependencies and documentation (recommended)
           - 🍎 **macOS**: 
             - `PDFRedactor-macOS.zip` - Native macOS application bundle (recommended)
             - `redactor-macos` - Standalone executable
