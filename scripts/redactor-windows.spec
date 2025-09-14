@@ -16,10 +16,8 @@ a = Analysis(
         ('../config', 'config'),
         ('../docs', 'docs'),
     ],
-    collect_all=['fitz', 'pymupdf', 'PIL', 'numpy', 'spacy'],
+    collect_all=['fitz', 'pymupdf', 'PIL', 'numpy'],
     hiddenimports=[
-        'spacy',
-        'en_core_web_sm',
         'tkinter',
         'tkinter.ttk',
         'tkinter.messagebox',
