@@ -75,11 +75,10 @@ jobs:
         pip list
         echo "=== Testing imports ==="
         python -c "import spacy; print(f'spaCy version: {spacy.__version__}')" && echo "✅ spaCy OK" || echo "❌ spaCy failed - will use fallback detection"
-        if python -c "import spacy; nlp = spacy.load('en_core_web_sm'); print('spaCy model loaded successfully')" 2>/dev/null; then
-          echo "✅ spaCy model en_core_web_sm loaded successfully"
-        else
-          echo "❌ spaCy model failed to load - will use fallback detection"
-        fi
+
+        # Test spaCy model loading (cross-platform compatible)
+        python -c "import spacy; nlp = spacy.load('en_core_web_sm'); print('spaCy model loaded successfully')" && echo "✅ spaCy model en_core_web_sm loaded successfully" || echo "❌ spaCy model failed to load - will use fallback detection"
+
         python -c "import PIL; print('PIL available')" && echo "✅ PIL OK" || echo "❌ PIL failed"
         python -c "import numpy; print('NumPy available')" && echo "✅ NumPy OK" || echo "❌ NumPy failed"
         python -c "import fitz; print('PyMuPDF available')" && echo "✅ PyMuPDF OK" || echo "❌ PyMuPDF failed"
