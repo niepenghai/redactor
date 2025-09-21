@@ -118,10 +118,12 @@ jobs:
     - name: Test Windows spaCy integration
       if: runner.os == 'Windows'
       run: |
-        echo "=== Windows spaCy Integration Test ==="
+        # Set UTF-8 encoding for Windows
+        $env:PYTHONIOENCODING="utf-8"
+        Write-Host "=== Windows spaCy Integration Test ==="
         python test_spacy_windows.py
-        echo "ℹ️  Windows build uses SimpleNLPNameDetector for reliable cross-platform compatibility"
-      shell: bash
+        Write-Host "Windows build uses SimpleNLPNameDetector for reliable cross-platform compatibility"
+      shell: pwsh
       continue-on-error: true  # Don't fail build if spaCy test fails
 
     - name: Build executable (Windows)
