@@ -49,27 +49,34 @@ jobs:
         # Use platform-specific requirements
         if [ "$RUNNER_OS" == "Windows" ]; then
           pip install -r requirements-windows.txt
-          # Try multiple spaCy installation strategies for Windows
-          echo "Attempting spaCy installation with fallback strategies..."
 
-          # Strategy 1: Try precompiled wheel without dependencies
-          echo "Strategy 1: Installing spaCy with --only-binary"
-          if pip install spacy --only-binary=all 2>/dev/null; then
-            echo "✅ spaCy wheel installation successful"
-            if python -m spacy download en_core_web_sm 2>/dev/null; then
-              echo "✅ spaCy model download successful"
-            else
-              echo "❌ spaCy model download failed"
-            fi
+          # Windows spaCy installation with multiple strategies
+          echo "=== Windows spaCy Installation Strategies ==="
+
+          # Strategy 1: Use compatible Python version and upgrade tools
+          echo "Strategy 1: Upgrading pip and setuptools for Windows compatibility"
+          pip install -U pip setuptools wheel
+
+          # Strategy 2: Try conda-forge installation (most reliable)
+          echo "Strategy 2: Attempting conda-forge installation"
+          if command -v conda >/dev/null 2>&1; then
+            conda install -c conda-forge spacy -y && \
+            python -m spacy download en_core_web_sm && \
+            echo "✅ conda-forge spaCy installation successful" || \
+            echo "❌ conda-forge installation failed"
           else
-            echo "❌ spaCy wheel installation failed"
+            echo "ℹ️  conda not available, trying pip alternatives"
 
-            # Strategy 2: Try installing just core dependencies
-            echo "Strategy 2: Installing minimal spaCy dependencies"
-            pip install numpy packaging requests || echo "Failed to install basic dependencies"
-
-            # Strategy 3: Accept that Windows will use fallback
-            echo "🔄 Windows will use rule-based fallback detection"
+            # Strategy 3: Binary wheels with compatible versions
+            echo "Strategy 3: Installing spaCy with compatible versions"
+            # Use spaCy 3.7.5 to avoid 3.8.2+ dependency issues
+            if pip install "spacy>=3.4.0,<3.8.0" --only-binary=all --no-deps 2>/dev/null && \
+               pip install numpy packaging requests tqdm setuptools && \
+               python -m spacy download en_core_web_sm 2>/dev/null; then
+              echo "✅ spaCy binary installation successful"
+            else
+              echo "❌ Binary installation failed, using fallback detection"
+            fi
           fi
         else
           pip install -r requirements.txt
