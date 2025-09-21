@@ -49,6 +49,11 @@ jobs:
         # Use platform-specific requirements
         if [ "$RUNNER_OS" == "Windows" ]; then
           pip install -r requirements-windows.txt
+          # Try to install spaCy with precompiled wheels for Windows
+          echo "Attempting to install spaCy with precompiled wheels..."
+          pip install spacy --only-binary=all --no-deps || echo "spaCy wheel installation failed, continuing without spaCy"
+          pip install spacy[lookups] --only-binary=all || echo "spaCy lookups installation failed"
+          python -m spacy download en_core_web_sm || echo "spaCy model download failed, will use fallback detection"
         else
           pip install -r requirements.txt
           python -m spacy download en_core_web_sm
@@ -69,13 +74,24 @@ jobs:
         echo "=== Full package list ==="
         pip list
         echo "=== Testing imports ==="
-        python -c "import spacy; print('spaCy available')" && echo "✅ spaCy OK" || echo "❌ spaCy failed"
-        python -c "import PIL; print('PIL available')" && echo "✅ PIL OK" || echo "❌ PIL failed"  
+        python -c "import spacy; print(f'spaCy version: {spacy.__version__}')" && echo "✅ spaCy OK" || echo "❌ spaCy failed - will use fallback detection"
+        if python -c "import spacy; nlp = spacy.load('en_core_web_sm'); print('spaCy model loaded successfully')" 2>/dev/null; then
+          echo "✅ spaCy model en_core_web_sm loaded successfully"
+        else
+          echo "❌ spaCy model failed to load - will use fallback detection"
+        fi
+        python -c "import PIL; print('PIL available')" && echo "✅ PIL OK" || echo "❌ PIL failed"
         python -c "import numpy; print('NumPy available')" && echo "✅ NumPy OK" || echo "❌ NumPy failed"
         python -c "import fitz; print('PyMuPDF available')" && echo "✅ PyMuPDF OK" || echo "❌ PyMuPDF failed"
         
         echo "=== Critical test - abort if core dependencies missing ==="
         python -c "import PIL, numpy, fitz; print('All critical dependencies available (spaCy is optional)')"
+
+        # Run Windows spaCy integration test
+        if [ "$RUNNER_OS" == "Windows" ]; then
+          echo "=== Windows spaCy Integration Test ==="
+          python test_spacy_windows.py || echo "spaCy test failed but build will continue with fallback"
+        fi
 
     - name: Build executable (Windows)
       if: runner.os == 'Windows'
