@@ -46,45 +46,39 @@ jobs:
         # Clear pip cache to avoid stale references
         pip cache purge
         
-        # Use platform-specific requirements
+        # Install platform-specific requirements
         if [ "$RUNNER_OS" == "Windows" ]; then
+          echo "Installing Windows-specific requirements..."
           pip install -r requirements-windows.txt
-
-          # Windows spaCy installation with multiple strategies
-          echo "=== Windows spaCy Installation Strategies ==="
-
-          # Strategy 1: Use compatible Python version and upgrade tools
-          echo "Strategy 1: Upgrading pip and setuptools for Windows compatibility"
-          pip install -U pip setuptools wheel
-
-          # Strategy 2: Try conda-forge installation (most reliable)
-          echo "Strategy 2: Attempting conda-forge installation"
-          if command -v conda >/dev/null 2>&1; then
-            conda install -c conda-forge spacy -y && \
-            python -m spacy download en_core_web_sm && \
-            echo "✅ conda-forge spaCy installation successful" || \
-            echo "❌ conda-forge installation failed"
-          else
-            echo "ℹ️  conda not available, trying pip alternatives"
-
-            # Strategy 3: Binary wheels with compatible versions
-            echo "Strategy 3: Installing spaCy with compatible versions"
-            # Use spaCy 3.7.5 to avoid 3.8.2+ dependency issues
-            if pip install "spacy>=3.4.0,<3.8.0" --only-binary=all --no-deps 2>/dev/null && \
-               pip install numpy packaging requests tqdm setuptools && \
-               python -m spacy download en_core_web_sm 2>/dev/null; then
-              echo "✅ spaCy binary installation successful"
-            else
-              echo "❌ Binary installation failed, using fallback detection"
-            fi
-          fi
         else
+          echo "Installing standard requirements with spaCy..."
           pip install -r requirements.txt
           python -m spacy download en_core_web_sm
         fi
         
         pip install pyinstaller
       shell: bash
+
+    # Windows-specific spaCy installation step
+    - name: Install spaCy on Windows
+      if: runner.os == 'Windows'
+      run: |
+        Write-Host "=== Windows spaCy Installation Strategies ==="
+
+        # Strategy 1: Try simple binary wheel installation
+        Write-Host "Strategy 1: Attempting spaCy binary wheel installation"
+        try {
+          pip install --upgrade pip setuptools wheel
+          # Try installing compatible spaCy version to avoid dependency conflicts
+          pip install "spacy==3.7.2" --only-binary=all
+          python -m spacy download en_core_web_sm
+          Write-Host "✅ spaCy installation successful"
+        }
+        catch {
+          Write-Host "❌ spaCy installation failed, will use fallback detection"
+          Write-Host "ℹ️  Error: $($_.Exception.Message)"
+        }
+      shell: pwsh
         
     - name: Verify dependencies
       run: |
