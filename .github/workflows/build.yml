@@ -46,17 +46,25 @@ jobs:
         # Clear pip cache to avoid stale references
         pip cache purge
         
-        # Install platform-specific requirements
-        if [ "$RUNNER_OS" == "Windows" ]; then
-          echo "Installing Windows-specific requirements..."
-          pip install -r requirements-windows.txt
-        else
-          echo "Installing standard requirements with spaCy..."
-          pip install -r requirements.txt
-          python -m spacy download en_core_web_sm
-        fi
-        
+        # Install PyInstaller for all platforms
         pip install pyinstaller
+      shell: bash
+
+    # Install Windows-specific requirements
+    - name: Install Windows requirements
+      if: runner.os == 'Windows'
+      run: |
+        echo "Installing Windows-specific requirements..."
+        pip install -r requirements-windows.txt
+      shell: bash
+
+    # Install Linux/Mac requirements with spaCy
+    - name: Install Linux/Mac requirements
+      if: runner.os != 'Windows'
+      run: |
+        echo "Installing standard requirements with spaCy..."
+        pip install -r requirements.txt
+        python -m spacy download en_core_web_sm
       shell: bash
 
     # Windows-specific spaCy installation step
@@ -104,12 +112,17 @@ jobs:
         echo "=== Critical test - abort if core dependencies missing ==="
         python -c "import PIL, numpy, fitz; print('All critical dependencies available (spaCy is optional)')"
 
-        # Run Windows spaCy integration test
-        if [ "$RUNNER_OS" == "Windows" ]; then
-          echo "=== Windows spaCy Integration Test ==="
-          python test_spacy_windows.py || echo "✅ spaCy test completed - fallback detection will be used"
-          echo "ℹ️  Windows build uses SimpleNLPNameDetector for reliable cross-platform compatibility"
-        fi
+        # Test completed - all platforms ready for build
+
+    # Windows spaCy integration test
+    - name: Test Windows spaCy integration
+      if: runner.os == 'Windows'
+      run: |
+        echo "=== Windows spaCy Integration Test ==="
+        python test_spacy_windows.py
+        echo "ℹ️  Windows build uses SimpleNLPNameDetector for reliable cross-platform compatibility"
+      shell: bash
+      continue-on-error: true  # Don't fail build if spaCy test fails
 
     - name: Build executable (Windows)
       if: runner.os == 'Windows'
