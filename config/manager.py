@@ -54,6 +54,7 @@ class ConfigurationManager:
                 "realistic_last_names": ["Smith", "Johnson", "Williams", "Brown", "Jones", "Garcia", "Miller", "Davis", "Rodriguez", "Martinez", "Hernandez", "Lopez"]
             },
             "custom_patterns": [],
+            "custom_strings": [],
             "output_settings": {
                 "preserve_formatting": True,
                 "add_watermark": False,
@@ -215,3 +216,7 @@ class ConfigurationManager:
     def get_custom_patterns(self, config: Dict[str, Any]) -> list:
         """Get custom patterns from config."""
         return config.get("custom_patterns", [])
+
+    def get_custom_strings(self, config: Dict[str, Any]) -> list:
+        """Get custom strings from config."""
+        return config.get("custom_strings", [])

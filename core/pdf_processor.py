@@ -9,18 +9,20 @@ from typing import List, Tuple, Optional, Dict, Any
 # Import realistic generators if available
 try:
     from ..utils.realistic_generators import RealisticDataGenerator
-    from ..config.patterns import get_pattern_generators
+    from ..config.patterns import get_pattern_generators, filter_balance_amounts, is_balance_amount
     from ..utils.nlp_name_detector import detect_names_nlp, detect_names_simple
     from ..utils.address_detector import detect_addresses_hybrid
 except ImportError:
     try:
         from utils.realistic_generators import RealisticDataGenerator
-        from config.patterns import get_pattern_generators
+        from config.patterns import get_pattern_generators, filter_balance_amounts, is_balance_amount
         from utils.nlp_name_detector import detect_names_nlp, detect_names_simple
         from utils.address_detector import detect_addresses_hybrid
     except ImportError:
         RealisticDataGenerator = None
         get_pattern_generators = None
+        filter_balance_amounts = None
+        is_balance_amount = None
         detect_names_nlp = None
         detect_names_simple = None
         detect_addresses_hybrid = None
@@ -106,6 +108,86 @@ class PDFProcessor:
                 doc.close()
             return False
     
+    def _detect_names_with_enhanced_nlp(self, page) -> List[Tuple[str, str]]:
+        """
+        Enhanced two-phase name detection using multiple text extraction methods.
+
+        Args:
+            page: PyMuPDF page object
+
+        Returns:
+            List of (pattern, replacement) tuples for detected names
+        """
+        try:
+            detected_names = set()
+
+            # Phase 1: Extract names using multiple methods
+
+            # Method 1: Default text format
+            text_default = page.get_text()
+            if detect_names_nlp:
+                names_default = detect_names_nlp(text_default)
+                for name, _, _ in names_default:
+                    if len(name.strip()) > 2:
+                        detected_names.add(name.strip())
+
+            # Method 2: Blocks format with cleaned text
+            blocks = page.get_text('blocks')
+            text_blocks = ''
+            for block in blocks:
+                if len(block) >= 5 and isinstance(block[4], str):
+                    # Clean block text, replace newlines with spaces
+                    import re
+                    cleaned_block = re.sub(r'\s+', ' ', block[4].strip())
+                    text_blocks += cleaned_block + ' '
+
+            if detect_names_nlp and text_blocks:
+                names_blocks = detect_names_nlp(text_blocks)
+                for name, _, _ in names_blocks:
+                    if len(name.strip()) > 2:
+                        detected_names.add(name.strip())
+
+            # Method 3: Words format with adjacent word reconstruction
+            words = page.get_text('words')
+            for i, word in enumerate(words):
+                if i < len(words) - 1:
+                    current_word = word[4]
+                    next_word = words[i + 1][4]
+                    # Check for potential name combinations (adjacent capitalized words)
+                    if (len(current_word) > 2 and len(next_word) > 2 and
+                        current_word[0].isupper() and next_word[0].isupper() and
+                        not any(char.isdigit() for char in current_word + next_word)):
+                        combined = current_word + ' ' + next_word
+                        detected_names.add(combined)
+
+            # Phase 2: Generate replacement patterns
+            name_patterns = []
+            replacement_mode = self.config.get("replacement_mode", "generic")
+
+            for name in detected_names:
+                # Skip obvious non-names (containing numbers, special chars, etc.)
+                if any(char.isdigit() for char in name) or len(name.split()) > 3:
+                    continue
+
+                # Create pattern for exact name matching
+                escaped_name = re.escape(name)
+                pattern = r'\b' + escaped_name + r'\b'
+
+                # Generate appropriate replacement
+                if replacement_mode == "realistic" and self.realistic_generator:
+                    replacement = self.realistic_generator.generate_person_name(name)
+                else:
+                    replacement = "[FULL NAME]"
+
+                name_patterns.append((pattern, replacement))
+
+            return name_patterns
+
+        except Exception as e:
+            print(f"⚠️  Warning: Enhanced NLP name detection failed: {str(e)}")
+            # Fallback to original method
+            return self._detect_names_with_nlp(page.get_text())
+
     def _detect_names_with_nlp(self, text: str) -> List[Tuple[str, str]]:
         """
         Detect names using NLP and return as patterns for redaction.
@@ -212,7 +294,8 @@ class PDFProcessor:
             # Add NLP-detected names to patterns if name redaction is enabled
             all_patterns = patterns.copy()
             if self.config.get("enabled_categories", {}).get("names", False):
-                nlp_name_patterns = self._detect_names_with_nlp(page_text)
+                # Use enhanced two-phase name detection
+                nlp_name_patterns = self._detect_names_with_enhanced_nlp(page)
                 all_patterns.extend(nlp_name_patterns)
                 if nlp_name_patterns:
                     print(f"🤖 NLP detected {len(nlp_name_patterns)} potential name(s) on this page")
@@ -224,38 +307,79 @@ class PDFProcessor:
                 if hybrid_address_patterns:
                     print(f"🏠 Hybrid detected {len(hybrid_address_patterns)} potential address(es) on this page")
             
+            # Collect all matches first for balance filtering
+            all_matches = []
+            custom_matches_found = 0
+
             for pattern, replacement in all_patterns:
                 try:
-                    for match in re.finditer(pattern, page_text, flags=re.IGNORECASE):
+                    matches = list(re.finditer(pattern, page_text, flags=re.IGNORECASE))
+
+                    for match in matches:
                         matched_text = match.group()
-                        locations = page.search_for(matched_text)
-                        
-                        # Generate realistic replacement if needed
-                        final_replacement = self._resolve_replacement(replacement, matched_text)
-                        
-                        for rect in locations:
-                            # Adjust rectangle to prevent overlapping text issues
-                            rect.x0 += 0.5  # left
-                            rect.y0 += 2    # top
-                            rect.x1 -= 0.5  # right
-                            rect.y1 -= 2    # bottom
-                            
-                            # Add redaction annotation
-                            page.add_redact_annot(rect, text="", fill=(1, 1, 1))
-                            
-                            # Store for replacement text insertion
-                            redaction_items.append((rect, final_replacement))
-                
+                        start_pos = match.start()
+                        end_pos = match.end()
+
+                        # Determine pattern category (needed for balance filtering)
+                        category = self._determine_pattern_category(pattern, replacement)
+
+                        all_matches.append((matched_text, replacement, start_pos, end_pos, category))
+
+                        if replacement == "[CUSTOM_REDACTED]":
+                            custom_matches_found += 1
+
                 except re.error as e:
                     print(f"⚠️  Invalid regex pattern '{pattern}': {str(e)}")
                     continue
                 except Exception as e:
                     print(f"⚠️  Error processing pattern '{pattern}': {str(e)}")
                     continue
-            
+
+            if custom_matches_found > 0:
+                print(f"🎯 Found {custom_matches_found} custom string match(es) on this page")
+
+            # Apply balance filtering if available
+            if filter_balance_amounts:
+                filtered_matches = filter_balance_amounts(all_matches, page_text)
+                print(f"🏦 Balance filtering: {len(all_matches)} → {len(filtered_matches)} matches (preserved {len(all_matches) - len(filtered_matches)} balance amounts)")
+            else:
+                filtered_matches = all_matches
+
+            # Process filtered matches
+            custom_redactions_processed = 0
+            for matched_text, replacement, start_pos, end_pos, category in filtered_matches:
+                try:
+                    locations = page.search_for(matched_text)
+
+                    # Generate realistic replacement if needed
+                    final_replacement = self._resolve_replacement(replacement, matched_text)
+
+                    for rect in locations:
+                        # Adjust rectangle to prevent overlapping text issues
+                        rect.x0 += 0.5  # left
+                        rect.y0 += 2    # top
+                        rect.x1 -= 0.5  # right
+                        rect.y1 -= 2    # bottom
+
+                        # Add redaction annotation
+                        page.add_redact_annot(rect, text="", fill=(1, 1, 1))
+
+                        # Store for replacement text insertion
+                        redaction_items.append((rect, final_replacement))
+
+                        if replacement == "[CUSTOM_REDACTED]":
+                            custom_redactions_processed += 1
+                
+                except Exception as e:
+                    print(f"⚠️  Error processing matched text '{matched_text}': {str(e)}")
+                    continue
+
+            if custom_redactions_processed > 0:
+                print(f"🎯 Applied {custom_redactions_processed} custom string redaction(s) on this page")
+
             # Apply all redactions
             page.apply_redactions()
-            
+
             # Insert replacement text
             self._insert_replacement_text(page, redaction_items)
             
@@ -264,6 +388,48 @@ class PDFProcessor:
         except Exception as e:
             print(f"⚠️  Error redacting page: {str(e)}")
             return False
+
+    def _determine_pattern_category(self, pattern: str, replacement: str) -> str:
+        """
+        Determine the category of a pattern based on its replacement text.
+
+        Args:
+            pattern: The regex pattern
+            replacement: The replacement text
+
+        Returns:
+            The category name (e.g., 'currency', 'ssn', 'phone', etc.)
+        """
+        # Map replacement patterns to categories
+        if replacement in ['$X,XXX.XX', 'X,XXX.XX']:
+            return 'currency'
+        elif replacement in ['XXX-XX-XXXX']:
+            return 'ssn'
+        elif replacement in ['(XXX) XXX-XXXX', 'XXX-XXX-XXXX', '1-XXX-XXX-XXXX']:
+            return 'phone'
+        elif replacement in ['XXXX XXXX XXXX', 'XXXXXXXXXX', 'ACCOUNT XXXXXXXXXX', 'ACCOUNT XXXX XXXX XXXX']:
+            return 'account_number'
+        elif replacement in ['XXXXXXXXX']:
+            return 'routing_number'
+        elif replacement in ['XXXX-XXXX-XXXX-XXXX', 'XXXX-XXXXXX-XXXXX']:
+            return 'credit_card'
+        elif replacement in ['XX-XXXXXXX']:
+            return 'tax_id'
+        elif replacement in ['XX/XX/XXXX', 'Month XX, XXXX']:
+            return 'dates'
+        elif replacement in ['user@domain.com']:
+            return 'email'
+        elif replacement in ['[STREET ADDRESS]', '[CITY, STATE ZIP]', 'P.O. BOX [NUMBER]']:
+            return 'address'
+        elif replacement in ['Employer: [EMPLOYER NAME]', 'Company: [COMPANY NAME]']:
+            return 'employer'
+        elif replacement in ['[FULL NAME]']:
+            return 'names'
+        elif replacement in ['[REDACTED]', '[CUSTOM_REDACTED]']:
+            return 'custom_strings'
+        else:
+            # Default category for unknown patterns
+            return 'unknown'
     
     def _insert_replacement_text(self, page, redaction_items: List[Tuple[any, str]]):
         """

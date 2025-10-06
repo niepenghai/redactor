@@ -39,7 +39,6 @@ tests/
 ```
 core/
 ├── redactor.py                 # 🎯 Main redaction logic
-├── enhanced_processor.py       # 📊 Advanced processing with reporting
 ├── pdf_processor.py            # 📄 PDF manipulation
 ├── processors/                 # 📁 Document type processors
 │   ├── base.py                 # 🏗️ Base processor class
@@ -106,7 +105,6 @@ data/
 | `redactor-gui.py` | Modern GUI with tabs, progress tracking, detailed reports |
 | `utils/nlp_name_detector.py` | 🤖 spaCy NLP for accurate name detection |
 | `config/patterns.py` | Pattern definitions with NLP integration |
-| `core/enhanced_processor.py` | Processing with comprehensive reporting |
 | `tests/test_nlp_names.py` | Quality assurance for name detection |
 
 ## 🏃 Quick Commands

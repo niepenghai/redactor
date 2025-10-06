@@ -50,7 +50,6 @@ redactor/
 ├── CLAUDE.md               # 🤖 Claude Code指导文件
 ├── core/                    # 🔧 核心处理引擎
 │   ├── redactor.py         
-│   ├── enhanced_processor.py
 │   └── pdf_processor.py    
 ├── config/                  # ⚙️ 配置和模式
 │   ├── patterns.py         # 改进的识别模式

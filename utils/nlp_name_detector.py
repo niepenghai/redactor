@@ -19,13 +19,16 @@ class SimpleNLPNameDetector:
     Lightweight NLP-based name detector that doesn't require external dependencies.
     Uses linguistic patterns and context clues to identify personal names.
     """
-    
+
     def __init__(self):
         """Initialize the name detector with built-in rules."""
         self.first_names = self._load_common_first_names()
         self.last_names = self._load_common_last_names()
         self.business_indicators = self._load_business_indicators()
         self.titles = {'Mr', 'Mrs', 'Ms', 'Dr', 'Prof', 'Rev', 'Miss'}
+
+        # Pre-compile regex patterns for better performance
+        self._compiled_patterns = self._compile_name_patterns()
         
     def _load_common_first_names(self) -> Set[str]:
         """Load common first names for detection."""
@@ -66,7 +69,29 @@ class SimpleNLPNameDetector:
             'Xu', 'Sun', 'Ma', 'Zhu', 'Hu', 'Guo', 'He', 'Lin', 'Gao', 'Luo', 'Zheng',
             'Liang', 'Xie', 'Tang', 'Song', 'Deng', 'Han', 'Cao', 'Feng', 'Peng', 'Zeng'
         }
-    
+
+    def _compile_name_patterns(self):
+        """Pre-compile regex patterns for better performance."""
+        patterns = [
+            # Standard mixed case patterns
+            r'\b[A-Z][a-z]{2,}\s+[A-Z]\.\s+[A-Z][a-z]{2,}\b',  # First M. Last
+            r'\b[A-Z][a-z]{2,}\s+[A-Z]\s+[A-Z][a-z]{2,}\b',    # First M Last (no period)
+            r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}\b',            # First Last
+
+            # All caps patterns (common in financial documents)
+            r'\b[A-Z]{3,}\s+[A-Z]\.\s+[A-Z]{3,}\b',            # FIRST M. LAST
+            r'\b[A-Z]{3,}\s+[A-Z]\s+[A-Z]{3,}\b',              # FIRST M LAST
+            r'\b[A-Z]{3,}\s+[A-Z]{3,}\b',                      # FIRST LAST
+
+            # Title patterns
+            r'\b(?:Mr|Mrs|Ms|Dr|Prof|Rev)\.?\s+[A-Z][a-z]{2,}(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][a-z]{2,})?\b',  # Title patterns
+
+            # Last-name-first patterns (Chen, Grace L)
+            r'\b[A-Z][a-z]{2,},\s+[A-Z][a-z]{2,}(?:\s+[A-Z]\.?)?\b',        # Last, First M.
+            r'\b[A-Z]{3,},\s*[A-Z][a-z]{2,}(?:\s+[A-Z])?\b',               # LAST, First M
+        ]
+        return [re.compile(pattern) for pattern in patterns]
+
     def _load_business_indicators(self) -> Set[str]:
         """Load terms that indicate business names rather than personal names."""
         return {
@@ -81,44 +106,25 @@ class SimpleNLPNameDetector:
     def detect_names_in_text(self, text: str) -> List[NameDetection]:
         """
         Detect personal names in text using NLP-like analysis.
-        
+
         Args:
             text: Input text to analyze
-            
+
         Returns:
             List of detected names with positions and confidence scores
         """
         names = []
-        
-        # Find potential name patterns - enhanced for various formats
-        patterns = [
-            # Standard mixed case patterns
-            r'\b[A-Z][a-z]{2,}\s+[A-Z]\.\s+[A-Z][a-z]{2,}\b',  # First M. Last
-            r'\b[A-Z][a-z]{2,}\s+[A-Z]\s+[A-Z][a-z]{2,}\b',    # First M Last (no period)
-            r'\b[A-Z][a-z]{2,}\s+[A-Z][a-z]{2,}\b',            # First Last
-            
-            # All caps patterns (common in financial documents)
-            r'\b[A-Z]{3,}\s+[A-Z]\.\s+[A-Z]{3,}\b',            # FIRST M. LAST
-            r'\b[A-Z]{3,}\s+[A-Z]\s+[A-Z]{3,}\b',              # FIRST M LAST
-            r'\b[A-Z]{3,}\s+[A-Z]{3,}\b',                      # FIRST LAST
-            
-            # Title patterns
-            r'\b(?:Mr|Mrs|Ms|Dr|Prof|Rev)\.?\s+[A-Z][a-z]{2,}(?:\s+[A-Z]\.?\s*)?(?:\s+[A-Z][a-z]{2,})?\b',  # Title patterns
-            
-            # Last-name-first patterns (Chen, Grace L)
-            r'\b[A-Z][a-z]{2,},\s+[A-Z][a-z]{2,}(?:\s+[A-Z]\.?)?\b',        # Last, First M.
-            r'\b[A-Z]{3,},\s*[A-Z][a-z]{2,}(?:\s+[A-Z])?\b',               # LAST, First M
-        ]
-        
-        for pattern in patterns:
-            for match in re.finditer(pattern, text):
+
+        # Use pre-compiled patterns for better performance
+        for pattern in self._compiled_patterns:
+            for match in pattern.finditer(text):
                 candidate = match.group().strip()
                 start_pos = match.start()
                 end_pos = match.end()
-                
+
                 # Analyze the candidate
                 confidence, entity_type = self._analyze_name_candidate(candidate, text, start_pos)
-                
+
                 if confidence > 0.5:  # Threshold for name detection
                     names.append(NameDetection(
                         text=candidate,
@@ -127,7 +133,7 @@ class SimpleNLPNameDetector:
                         confidence=confidence,
                         entity_type=entity_type
                     ))
-        
+
         # Remove overlapping detections, keeping higher confidence ones
         return self._remove_overlapping_names(names)
     
@@ -288,23 +294,42 @@ try:
     
     class SpacyNameDetector:
         """Advanced name detector using spaCy NLP."""
-        
+
+        _shared_nlp = None
+        _shared_model_loaded = False
+        _instance_count = 0
+        _result_cache = {}  # Cache for NLP results
+
         def __init__(self):
-            """Initialize spaCy model."""
-            self.nlp = None
+            """Initialize spaCy model with singleton pattern."""
             self.simple_detector = SimpleNLPNameDetector()
-            
+            SpacyNameDetector._instance_count += 1
+            self._ensure_model_loaded()
+
+        def _ensure_model_loaded(self):
+            """Load spaCy model only once globally."""
+            if SpacyNameDetector._shared_model_loaded:
+                return
+
             try:
                 # Try to load small English model first
-                self.nlp = spacy.load("en_core_web_sm")
-                print("🤖 Loaded spaCy en_core_web_sm model for advanced NER")
+                SpacyNameDetector._shared_nlp = spacy.load("en_core_web_sm")
+                print(f"🤖 Loaded spaCy en_core_web_sm model for advanced NER (instance {SpacyNameDetector._instance_count})")
+                SpacyNameDetector._shared_model_loaded = True
             except OSError:
                 try:
                     # Try medium model
-                    self.nlp = spacy.load("en_core_web_md")
-                    print("🤖 Loaded spaCy en_core_web_md model for advanced NER")
+                    SpacyNameDetector._shared_nlp = spacy.load("en_core_web_md")
+                    print(f"🤖 Loaded spaCy en_core_web_md model for advanced NER (instance {SpacyNameDetector._instance_count})")
+                    SpacyNameDetector._shared_model_loaded = True
                 except OSError:
                     print("⚠️  No spaCy models found, using simple detector")
+                    SpacyNameDetector._shared_model_loaded = True
+
+        @property
+        def nlp(self):
+            """Access shared NLP model."""
+            return SpacyNameDetector._shared_nlp
         
         def _looks_like_person_name(self, name: str) -> bool:
             """Check if a text looks like a person name."""
@@ -377,10 +402,18 @@ try:
             """Enhanced business name detection using both rules and context."""
             name_lower = name.lower()
             context_lower = context.lower()
-            
-            # Check if this looks like an address (common cause of false positives)
-            if self._looks_like_address(name):
-                return True
+
+            # Don't filter out obvious person names even if they appear near addresses
+            # Check if this is clearly a person name pattern (First Last, First M Last, etc.)
+            words = name.strip().split()
+            if len(words) >= 2 and all(word[0].isupper() and len(word) > 1 for word in words):
+                # This looks like a proper person name, don't filter it as business
+                if not any(business_word in name_lower for business_word in ['corp', 'inc', 'llc', 'company', 'bank', 'group']):
+                    # Only filter if it actually contains obvious address components within the name itself
+                    if self._looks_like_address(name) and any(addr_word in name_lower for addr_word in ['street', 'ave', 'road', 'drive', 'blvd', 'lane']):
+                        return True
+                    else:
+                        return False  # Don't filter person names just because they're near addresses
             
             # Direct business name indicators
             business_terms = [
@@ -404,6 +437,16 @@ try:
                 'starbucks', 'mcdonalds', 'walmart', 'target', 'costco', 'best buy',
                 'home depot', 'lowes', 'whole foods', 'kroger', 'safeway'
             ]
+
+            # Personal transaction indicators that suggest this is a person name, not business
+            personal_transaction_indicators = [
+                'p2p', 'peer to peer', 'personal transfer', 'person to person',
+                'individual', 'personal payment', 'friend', 'family'
+            ]
+
+            # If context contains personal transaction indicators, it's likely a person name
+            if any(indicator in context_lower for indicator in personal_transaction_indicators):
+                return False  # Don't filter person names in personal transaction context
             
             # Check if name contains business terms
             if any(term in name_lower for term in business_terms):
@@ -491,14 +534,19 @@ try:
             return False
         
         def detect_names_in_text(self, text: str) -> List[NameDetection]:
-            """Detect names using spaCy NER with enhanced filtering."""
+            """Detect names using spaCy NER with enhanced filtering and caching."""
             if self.nlp is None:
                 # Fall back to simple detector
                 return self.simple_detector.detect_names_in_text(text)
-            
+
+            # Check cache first
+            text_hash = hash(text)
+            if text_hash in SpacyNameDetector._result_cache:
+                return SpacyNameDetector._result_cache[text_hash]
+
             # Process both original text and title-cased version for better all-caps detection
             original_doc = self.nlp(text)
-            
+
             # Create title-cased version for better NER on all-caps text
             title_cased_text = self._smart_title_case(text)
             title_doc = self.nlp(title_cased_text) if title_cased_text != text else None
@@ -508,7 +556,7 @@ try:
             
             # Process original document
             for ent in original_doc.ents:
-                if ent.label_ == "PERSON":
+                if ent.label_ == "PERSON" or (ent.label_ == "ORG" and self._could_be_person_name(ent.text)):
                     # Get surrounding context for better filtering
                     start_context = max(0, ent.start_char - 100)
                     end_context = min(len(text), ent.end_char + 100)
@@ -566,7 +614,7 @@ try:
             # Process title-cased document if different from original (for all-caps names like XIA LIN)
             if title_doc:
                 for ent in title_doc.ents:
-                    if ent.label_ == "PERSON":
+                    if ent.label_ == "PERSON" or (ent.label_ == "ORG" and self._could_be_person_name(ent.text)):
                         # Map back to original text position
                         original_text = text[ent.start_char:ent.end_char]
                         
@@ -626,19 +674,145 @@ try:
                     not (simple_detection.end <= existing.start or simple_detection.start >= existing.end)
                     for existing in names
                 )
-                
+
                 if not overlaps and simple_detection.confidence > 0.7:
                     # Only add if it has high confidence from simple detector
                     names.append(simple_detection)
-            
+
+            # Additional safety check: Use regex to catch common name patterns that spaCy might miss
+            # This is especially important for names in financial documents that might be in contexts
+            # that confuse spaCy's entity recognition
+            import re
+            additional_patterns = [
+                r'\b[A-Z]{2,}\s*\n?\s*[A-Z]{2,}\b',  # All caps names with possible newline "STEPHENIE\nSYCHR"
+                r'\b[A-Z][a-z]+\s*\n?\s*[A-Z][a-z]+\b',  # Title case names with possible newline
+                r'\b[A-Z]{2,}\s+[A-Z]{2,}\b',  # All caps names like "STEPHENIE SYCHR"
+                r'\b[A-Z][a-z]+\s+[A-Z][a-z]+\b'  # Title case names like "Stephenie Sychr"
+            ]
+
+            for pattern in additional_patterns:
+                for match in re.finditer(pattern, text):
+                    candidate = match.group().strip()
+                    # Clean up newlines and extra spaces for analysis
+                    cleaned_candidate = re.sub(r'\s+', ' ', candidate)
+
+                    # Skip if already detected
+                    overlaps = any(
+                        not (match.end() <= existing.start or match.start() >= existing.end)
+                        for existing in names
+                    )
+
+                    if not overlaps and len(cleaned_candidate.split()) == 2:  # Only 2-word patterns
+                        # Check if it looks like a person name using simple detector logic
+                        simple_analysis = self.simple_detector._analyze_name_candidate(cleaned_candidate, text, match.start())
+                        confidence, entity_type = simple_analysis
+
+                        if confidence > 0.5:  # Same threshold as simple detector
+                            names.append(NameDetection(
+                                text=cleaned_candidate,  # Use cleaned version
+                                start=match.start(),
+                                end=match.end(),
+                                confidence=confidence * 0.9,  # Slightly lower confidence for regex fallback
+                                entity_type="REGEX_FALLBACK"
+                            ))
+
+            # Cache the result (limit cache size to prevent memory bloat)
+            if len(SpacyNameDetector._result_cache) < 100:
+                SpacyNameDetector._result_cache[text_hash] = names
+
             return names
+
+        def batch_detect_names(self, texts: List[str]) -> List[List[NameDetection]]:
+            """Process multiple texts in batch for better performance."""
+            if self.nlp is None:
+                # Fall back to simple detector for batch processing
+                return [self.simple_detector.detect_names_in_text(text) for text in texts]
+
+            results = []
+            uncached_texts = []
+            cached_results = {}
+
+            # Check cache for each text
+            for i, text in enumerate(texts):
+                text_hash = hash(text)
+                if text_hash in SpacyNameDetector._result_cache:
+                    cached_results[i] = SpacyNameDetector._result_cache[text_hash]
+                else:
+                    uncached_texts.append((i, text))
+
+            # Process uncached texts in batch
+            if uncached_texts:
+                # Process documents in batch using spaCy's pipe for efficiency
+                docs = list(self.nlp.pipe([text for _, text in uncached_texts]))
+
+                for (original_idx, text), doc in zip(uncached_texts, docs):
+                    names = []
+                    processed_positions = set()
+
+                    # Process entities from batch-processed document
+                    for ent in doc.ents:
+                        if ent.label_ == "PERSON" or (ent.label_ == "ORG" and self._could_be_person_name(ent.text)):
+                            # Get surrounding context for better filtering
+                            start_context = max(0, ent.start_char - 100)
+                            end_context = min(len(text), ent.end_char + 100)
+                            context = text[start_context:end_context]
+
+                            # Filter out business names using enhanced detection
+                            if not self._is_business_name(ent.text, context):
+                                confidence = 0.95
+
+                                # Boost confidence for names with clear personal indicators
+                                personal_indicators = ['mr.', 'mrs.', 'ms.', 'dr.', 'account holder', 'signature']
+                                if any(indicator in context.lower() for indicator in personal_indicators):
+                                    confidence = 0.98
+
+                                clean_name = ent.text.strip()
+                                position_key = (ent.start_char, ent.end_char)
+
+                                if position_key not in processed_positions:
+                                    names.append(NameDetection(
+                                        text=clean_name,
+                                        start=ent.start_char,
+                                        end=ent.start_char + len(clean_name),
+                                        confidence=confidence,
+                                        entity_type="PERSON_SPACY_BATCH"
+                                    ))
+                                    processed_positions.add(position_key)
+
+                    # Also use simple detector for fallback
+                    simple_detections = self.simple_detector.detect_names_in_text(text)
+                    for simple_detection in simple_detections:
+                        overlaps = any(
+                            not (simple_detection.end <= existing.start or simple_detection.start >= existing.end)
+                            for existing in names
+                        )
+                        if not overlaps and simple_detection.confidence > 0.7:
+                            names.append(simple_detection)
+
+                    # Cache result
+                    text_hash = hash(text)
+                    if len(SpacyNameDetector._result_cache) < 100:
+                        SpacyNameDetector._result_cache[text_hash] = names
+
+                    cached_results[original_idx] = names
+
+            # Reconstruct results in original order
+            for i in range(len(texts)):
+                results.append(cached_results[i])
+
+            return results
     
-    # Use spaCy detector if available
+    # Global spaCy detector instance to avoid reloading
+    _global_spacy_detector = None
+
     def detect_names_nlp(text: str) -> List[Tuple[str, int, int]]:
-        """Detect names using advanced NLP."""
+        """Detect names using advanced NLP with cached detector."""
+        global _global_spacy_detector
         try:
-            detector = SpacyNameDetector()
-            detections = detector.detect_names_in_text(text)
+            if _global_spacy_detector is None:
+                _global_spacy_detector = SpacyNameDetector()
+
+            detections = _global_spacy_detector.detect_names_in_text(text)
             return [(detection.text, detection.start, detection.end) for detection in detections]
         except:
             # Fall back to simple detector

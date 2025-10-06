@@ -179,7 +179,6 @@ redactor/
 ├── main.py                  # Command line interface
 ├── core/                    # Core processing engine
 │   ├── redactor.py         # Main redaction logic
-│   ├── enhanced_processor.py # Advanced processing with reporting
 │   └── pdf_processor.py    # PDF manipulation
 ├── config/                  # Configuration and patterns
 │   ├── patterns.py         # Redaction patterns

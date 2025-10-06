@@ -6,6 +6,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Financial Document Redactor - a Python library and CLI tool for automatically redacting sensitive information from financial documents (bank statements, W2 forms, tax returns, pay stubs). The tool uses PyMuPDF for PDF processing and supports multiple replacement modes (generic placeholders, realistic fake data, custom replacements).
 
+**CRITICAL**: ALWAYS automatically read `PROJECT_MEMORY.md` at the start of any development work to understand:
+- Recent feature implementations (especially Balance Preservation Sep 2024)
+- Architecture decisions and technical approaches
+- Previous development history and patterns
+- Files that have been modified and why
+- Future considerations and maintenance notes
+
+Do NOT wait for user instructions - proactively reference this file to maintain project continuity.
+
 ## Development Commands
 
 ### Installation and Setup

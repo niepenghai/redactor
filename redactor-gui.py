@@ -13,7 +13,6 @@ import threading
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from core.redactor import FinancialDocumentRedactor
-from core.enhanced_processor import EnhancedPDFProcessor
 
 
 class EnhancedRedactorGUI:
@@ -25,7 +24,6 @@ class EnhancedRedactorGUI:
         # Initialize redactor with realistic mode by default
         self.redactor = FinancialDocumentRedactor()
         self.redactor.update_config({"replacement_mode": "realistic"})
-        self.enhanced_processor = EnhancedPDFProcessor(self.redactor.config)
         
         self.selected_files = []
         self.output_folder = ""
@@ -89,6 +87,56 @@ class EnhancedRedactorGUI:
                                        font=("Arial", 9), foreground="darkgreen",
                                        wraplength=600)
         self.config_display.grid(row=1, column=0, sticky=tk.W, pady=(5, 0))
+
+        # Custom strings replacement frame
+        custom_frame = ttk.LabelFrame(settings_frame, text="🎯 Custom String Replacement", padding="10")
+        custom_frame.grid(row=3, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=(15, 0))
+
+        # Instructions
+        ttk.Label(custom_frame, text="Add specific strings to replace (one per line):",
+                 font=("Arial", 10, "bold")).grid(row=0, column=0, sticky=tk.W, pady=(0, 5))
+
+        # Input area frame
+        input_area_frame = ttk.Frame(custom_frame)
+        input_area_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 10))
+
+        # Original strings input
+        ttk.Label(input_area_frame, text="Original strings:", font=("Arial", 9)).grid(row=0, column=0, sticky=tk.W)
+        self.original_strings_text = tk.Text(input_area_frame, height=4, width=35, font=("Courier", 9))
+        self.original_strings_text.grid(row=1, column=0, padx=(0, 10), pady=(5, 0))
+
+        # Replacement text input
+        ttk.Label(input_area_frame, text="Replace with:", font=("Arial", 9)).grid(row=0, column=1, sticky=tk.W)
+
+        replacement_frame = ttk.Frame(input_area_frame)
+        replacement_frame.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=(5, 0))
+
+        self.replacement_text = tk.StringVar(value="[REDACTED]")
+        replacement_entry = ttk.Entry(replacement_frame, textvariable=self.replacement_text,
+                                    width=20, font=("Arial", 9))
+        replacement_entry.grid(row=0, column=0, sticky=(tk.W, tk.E))
+
+        # Buttons frame
+        buttons_frame = ttk.Frame(input_area_frame)
+        buttons_frame.grid(row=1, column=2, padx=(10, 0), pady=(5, 0))
+
+        ttk.Button(buttons_frame, text="✅ Add",
+                  command=self.add_custom_strings, width=8).grid(row=0, column=0, pady=(0, 5))
+        ttk.Button(buttons_frame, text="🗑️ Clear",
+                  command=self.clear_custom_strings, width=8).grid(row=1, column=0)
+
+        # Current custom strings display
+        ttk.Label(custom_frame, text="Current custom strings:",
+                 font=("Arial", 9, "bold")).grid(row=2, column=0, sticky=tk.W, pady=(10, 5))
+
+        self.custom_strings_display = scrolledtext.ScrolledText(custom_frame, height=4, state="disabled",
+                                                              font=("Courier", 9), wrap=tk.WORD)
+        self.custom_strings_display.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=(0, 5))
+
+        # Configure grid weights for custom frame
+        custom_frame.grid_columnconfigure(0, weight=1)
+        input_area_frame.grid_columnconfigure(1, weight=1)
+        replacement_frame.grid_columnconfigure(0, weight=1)
         
         # File selection frame
         files_frame = ttk.LabelFrame(main_frame, text="📁 File Selection", padding="15")
@@ -197,6 +245,9 @@ class EnhancedRedactorGUI:
         
         # Initialize configuration display
         self.update_config_display()
+
+        # Initialize custom strings display
+        self.update_custom_strings_display()
     
     def on_mode_change(self, event=None):
         """Handle replacement mode change."""
@@ -214,7 +265,6 @@ class EnhancedRedactorGUI:
         try:
             self.redactor.update_config({"replacement_mode": mode})
             self.update_config_display()
-            self.enhanced_processor = EnhancedPDFProcessor(self.redactor.config)
             self.log_message(f"✅ Mode changed to: {mode.title()}")
         except Exception as e:
             messagebox.showerror("Error", f"Failed to update mode: {e}")
@@ -342,7 +392,108 @@ class EnhancedRedactorGUI:
             
         except Exception as e:
             self.config_display.config(text=f"⚠️ Error loading configuration: {e}")
-    
+
+    def add_custom_strings(self):
+        """Add custom strings for replacement."""
+        try:
+            # Get input text
+            input_text = self.original_strings_text.get("1.0", tk.END).strip()
+            replacement = self.replacement_text.get().strip()
+
+            if not input_text:
+                messagebox.showwarning("Warning", "Please enter at least one string to replace.")
+                return
+
+            if not replacement:
+                replacement = "[REDACTED]"
+
+            # Split into individual strings (by lines)
+            strings = [s.strip() for s in input_text.split('\n') if s.strip()]
+
+            if not strings:
+                messagebox.showwarning("Warning", "Please enter valid strings to replace.")
+                return
+
+            # Add to redactor
+            success = self.redactor.add_custom_strings(strings, replacement, save=True)
+
+            if success:
+                # Clear input
+                self.original_strings_text.delete("1.0", tk.END)
+
+                # Update display
+                self.update_custom_strings_display()
+
+                # Log message
+                self.log_message(f"✅ Added {len(strings)} custom string(s) for replacement with '{replacement}'")
+                messagebox.showinfo("Success", f"Added {len(strings)} custom string(s) successfully!")
+            else:
+                messagebox.showerror("Error", "Failed to add custom strings.")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to add custom strings: {str(e)}")
+
+    def clear_custom_strings(self):
+        """Clear all custom strings."""
+        try:
+            if messagebox.askyesno("Confirm", "Are you sure you want to clear all custom strings?"):
+                success = self.redactor.clear_custom_strings(save=True)
+
+                if success:
+                    # Update display
+                    self.update_custom_strings_display()
+
+                    # Log message
+                    self.log_message("🗑️ Cleared all custom strings")
+                    messagebox.showinfo("Success", "Cleared all custom strings successfully!")
+                else:
+                    messagebox.showerror("Error", "Failed to clear custom strings.")
+
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to clear custom strings: {str(e)}")
+
+    def update_custom_strings_display(self):
+        """Update the display of current custom strings."""
+        try:
+            # Get current custom strings
+            custom_strings = self.redactor.get_custom_strings()
+
+            # Enable text widget for update
+            self.custom_strings_display.config(state="normal")
+            self.custom_strings_display.delete("1.0", tk.END)
+
+            if not custom_strings:
+                self.custom_strings_display.insert("1.0", "No custom strings configured.")
+            else:
+                # Group by replacement text
+                replacement_groups = {}
+                for item in custom_strings:
+                    replacement = item["replacement"]
+                    if replacement not in replacement_groups:
+                        replacement_groups[replacement] = []
+                    replacement_groups[replacement].append(item["text"])
+
+                # Display grouped strings
+                lines = []
+                for replacement, strings in replacement_groups.items():
+                    lines.append(f"Replace with '{replacement}':")
+                    for string in strings:
+                        lines.append(f"  • {string}")
+                    lines.append("")  # Empty line between groups
+
+                display_text = "\n".join(lines).strip()
+                self.custom_strings_display.insert("1.0", display_text)
+
+            # Disable text widget again
+            self.custom_strings_display.config(state="disabled")
+
+        except Exception as e:
+            # Enable for error message
+            self.custom_strings_display.config(state="normal")
+            self.custom_strings_display.delete("1.0", tk.END)
+            self.custom_strings_display.insert("1.0", f"Error loading custom strings: {str(e)}")
+            self.custom_strings_display.config(state="disabled")
+
     def process_files(self):
         """Start processing files in background thread."""
         if self.processing:
@@ -352,6 +503,51 @@ class EnhancedRedactorGUI:
         thread.daemon = True
         thread.start()
     
+    def redact_with_main_redactor(self, input_path: str, output_path: str) -> dict:
+        """
+        Use the main redactor to process PDF with same logic as CLI.
+        Returns dict compatible with enhanced processor interface.
+        """
+        try:
+            # Extract filename and folders for main redactor interface
+            input_filename = os.path.basename(input_path)
+            output_filename = os.path.basename(output_path)
+            input_folder = os.path.dirname(input_path)
+            output_folder = os.path.dirname(output_path)
+
+            # Use main redactor (same as CLI)
+            success = self.redactor.redact_pdf(
+                input_pdf=input_filename,
+                output_pdf=output_filename,
+                input_folder=input_folder,
+                output_folder=output_folder
+            )
+
+            if success:
+                # Create a basic report (enhanced processor interface compatibility)
+                report = {
+                    'document_type': 'unknown',  # Could be enhanced later
+                    'total_redactions': 0,  # Could be enhanced later
+                    'redactions_by_category': {},
+                    'detailed_redactions': []
+                }
+
+                return {
+                    'success': True,
+                    'redaction_report': report
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': 'Redaction failed'
+                }
+
+        except Exception as e:
+            return {
+                'success': False,
+                'error': str(e)
+            }
+
     def _process_files_thread(self):
         """Process files in background thread with detailed reporting."""
         try:
@@ -372,8 +568,8 @@ class EnhancedRedactorGUI:
                     self.root.after(0, self.log_message, 
                                   f"\\n🔄 Processing {i+1}/{len(self.selected_files)}: {filename}")
                     
-                    # Use enhanced processor for detailed reporting
-                    result = self.enhanced_processor.process_pdf_with_reporting(file_path, output_path)
+                    # Use main redactor to ensure same logic as CLI
+                    result = self.redact_with_main_redactor(file_path, output_path)
                     
                     if result['success']:
                         report = result['redaction_report']
@@ -617,17 +813,34 @@ class EnhancedRedactorGUI:
                         self.root.after(0, self._update_preview, f"   ⚠️  No text found in {filename}")
                         continue
                     
-                    # Get patterns with NLP enhancement
-                    from config.patterns import get_financial_patterns, enhance_patterns_with_nlp
-                    base_patterns = get_financial_patterns()
-                    patterns = enhance_patterns_with_nlp(base_patterns, full_text)
-                    
-                    # Filter by enabled categories
-                    enabled_categories = self.redactor.config.get("enabled_categories", {})
+                    # Use same pattern logic as main redactor (includes custom strings)
+                    enabled_patterns = self.redactor.get_enabled_patterns()
+
+                    # Group patterns by category for display
                     active_patterns = {}
-                    for category, pattern_list in patterns.items():
-                        if enabled_categories.get(category, True):
-                            active_patterns[category] = pattern_list
+                    for pattern, replacement in enabled_patterns:
+                        # Try to determine category from replacement text
+                        category = "unknown"
+                        if "FULL NAME" in replacement:
+                            category = "names"
+                        elif "XXX-XX-XXXX" in replacement:
+                            category = "ssn"
+                        elif "XXX-XXX-XXXX" in replacement:
+                            category = "phone"
+                        elif "XXXXXXXXXX" in replacement:
+                            category = "account_number"
+                        elif "$X,XXX.XX" in replacement:
+                            category = "currency"
+                        elif "user@domain.com" in replacement:
+                            category = "email"
+                        elif "STREET ADDRESS" in replacement or "CITY, STATE" in replacement:
+                            category = "address"
+                        elif "[CUSTOM_REDACTED]" in replacement or "[REDACTED]" in replacement:
+                            category = "custom_strings"
+
+                        if category not in active_patterns:
+                            active_patterns[category] = []
+                        active_patterns[category].append((pattern, replacement))
                     
                     # Find all matches
                     file_detections = {}
@@ -655,7 +868,7 @@ class EnhancedRedactorGUI:
                             realistic_matches = []
                             for original, generic_replacement in matches:
                                 if self.redactor.config.get("replacement_mode") == "realistic":
-                                    realistic_replacement = self.enhanced_processor.generate_realistic_replacement(category, original)
+                                    realistic_replacement = self.redactor.generate_realistic_replacement(category, original)
                                 else:
                                     realistic_replacement = generic_replacement
                                 realistic_matches.append((original, realistic_replacement))

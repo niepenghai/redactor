@@ -3,6 +3,7 @@ Core redaction engine for financial documents.
 """
 import os
 import sys
+import re
 from typing import List, Tuple, Dict
 
 # Handle both package and direct execution imports
@@ -65,7 +66,7 @@ class FinancialDocumentRedactor:
         """
         return get_patterns_for_document_type(doc_type, self.financial_patterns)
     
-    def get_enabled_patterns(self) -> List[Tuple[str, str]]:
+    def get_enabled_patterns(self, debug: bool = False) -> List[Tuple[str, str]]:
         """Get only the enabled patterns based on configuration and replacement mode."""
         enabled_patterns = []
         enabled_categories = self.config_manager.get_enabled_categories(self.config)
@@ -92,7 +93,19 @@ class FinancialDocumentRedactor:
         custom_patterns = self.config_manager.get_custom_patterns(self.config)
         for custom_pattern in custom_patterns:
             enabled_patterns.append((custom_pattern["pattern"], custom_pattern["replacement"]))
-        
+
+        # Add custom strings as exact match patterns
+        custom_strings = self.config_manager.get_custom_strings(self.config)
+        for custom_string in custom_strings:
+            # Escape the string for exact matching
+            escaped_text = re.escape(custom_string["text"])
+            # Use word boundaries only if the string starts/ends with word characters
+            if escaped_text and escaped_text[0].isalnum() and escaped_text[-1].isalnum():
+                pattern = f"\\b{escaped_text}\\b"
+            else:
+                pattern = escaped_text
+            enabled_patterns.append((pattern, custom_string["replacement"]))
+
         return enabled_patterns
     
     def redact_pdf(self, input_pdf: str, output_pdf: str, input_folder: str, output_folder: str, user_patterns: List[Tuple[str, str]] = None) -> bool:
@@ -131,18 +144,30 @@ class FinancialDocumentRedactor:
             doc_type = self.detect_document_type(all_text)
             print(f"📄 Detected document type: {doc_type.replace('_', ' ').title()}")
             
-            # Get enabled patterns based on configuration
+            # Get enabled patterns based on configuration (includes custom strings)
             enabled_patterns = self.get_enabled_patterns()
-            
+
             # Get document-specific patterns
             document_patterns = self.get_patterns_for_document_type(doc_type)
-            
+
             # Filter document patterns based on config
             filtered_doc_patterns = filter_patterns_by_config(document_patterns, enabled_patterns)
-            
+
+            # Combine enabled patterns (includes custom strings) with filtered document patterns
+            # Note: enabled_patterns already includes all patterns we want, including custom strings
+            all_enabled_patterns = enabled_patterns + filtered_doc_patterns
+
+            # Remove duplicates while preserving order
+            seen = set()
+            unique_patterns = []
+            for pattern, replacement in all_enabled_patterns:
+                if (pattern, replacement) not in seen:
+                    unique_patterns.append((pattern, replacement))
+                    seen.add((pattern, replacement))
+
             # Process patterns for realistic replacements if needed
-            processed_patterns = self._process_patterns_for_replacement(filtered_doc_patterns, all_text)
-            
+            processed_patterns = self._process_patterns_for_replacement(unique_patterns, all_text)
+
             # Combine with user-defined patterns
             combined_patterns = processed_patterns + user_patterns
             
@@ -263,7 +288,113 @@ class FinancialDocumentRedactor:
         except Exception as e:
             print(f"❌ Error adding custom pattern: {str(e)}")
             return False
-    
+
+    def add_custom_strings(self, strings: List[str], replacement: str = "[REDACTED]", save: bool = True) -> bool:
+        """
+        Add custom strings for exact text redaction.
+
+        Args:
+            strings: List of exact strings to redact
+            replacement: Replacement text for all strings
+            save: Whether to save the config to file
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            if not strings:
+                print("❌ No strings provided")
+                return False
+
+            # Get existing custom strings from config
+            custom_strings = self.config.get("custom_strings", [])
+
+            # Add new strings (avoid duplicates)
+            added_count = 0
+            for string in strings:
+                if string and string.strip():  # Skip empty strings
+                    string_data = {
+                        "text": string.strip(),
+                        "replacement": replacement
+                    }
+                    # Check for duplicates
+                    if not any(item["text"] == string_data["text"] for item in custom_strings):
+                        custom_strings.append(string_data)
+                        added_count += 1
+
+            updates = {"custom_strings": custom_strings}
+            self.update_config(updates, save)
+
+            print(f"✅ Added {added_count} custom strings for redaction")
+            return True
+
+        except Exception as e:
+            print(f"❌ Error adding custom strings: {str(e)}")
+            return False
+
+    def clear_custom_strings(self, save: bool = True) -> bool:
+        """
+        Clear all custom strings.
+
+        Args:
+            save: Whether to save the config to file
+
+        Returns:
+            True if successful, False otherwise
+        """
+        try:
+            updates = {"custom_strings": []}
+            self.update_config(updates, save)
+            print("✅ Cleared all custom strings")
+            return True
+        except Exception as e:
+            print(f"❌ Error clearing custom strings: {str(e)}")
+            return False
+
+    def get_custom_strings(self) -> List[Dict[str, str]]:
+        """
+        Get current custom strings.
+
+        Returns:
+            List of custom string dictionaries
+        """
+        return self.config.get("custom_strings", [])
+
+    def generate_realistic_replacement(self, category: str, original_text: str) -> str:
+        """Generate realistic replacement for GUI preview."""
+        try:
+            from ..utils.realistic_generators import RealisticDataGenerator
+        except ImportError:
+            from utils.realistic_generators import RealisticDataGenerator
+
+        generator = RealisticDataGenerator(self.config)
+
+        if category == 'ssn':
+            return generator.generate_ssn(original_text)
+        elif category == 'phone':
+            return generator.generate_phone(original_text)
+        elif category == 'names':
+            return generator.generate_person_name(original_text)
+        elif category == 'email':
+            return generator.generate_email(original_text)
+        elif category == 'address':
+            return generator.generate_address(original_text)
+        elif category == 'account_number':
+            return generator.generate_account_number(original_text)
+        elif category == 'routing_number':
+            return generator.generate_routing_number(original_text)
+        elif category == 'credit_card':
+            return generator.generate_credit_card(original_text)
+        elif category == 'tax_id':
+            return generator.generate_tax_id(original_text)
+        elif category == 'currency':
+            return generator.generate_currency(original_text)
+        elif category == 'dates':
+            return generator.generate_date(original_text)
+        else:
+            # Fallback to generic replacement
+            return f"[{category.upper()}]"
+
     def get_document_info(self, pdf_path: str) -> Dict[str, any]:
         """
         Get information about a PDF document.

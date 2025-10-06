@@ -34,7 +34,12 @@ def get_financial_patterns() -> Dict[str, List[Tuple[str, str]]]:
         
         # Bank account numbers - more restrictive
         'account_number': [
-            (r'(?i)(?:account|acct)\s*#?\s*\d{8,17}\b', 'ACCOUNT XXXXXXXXXX'),  # With context
+            (r'(?i)(?:account|acct)\s*#?\s*:?\s*\d{8,17}\b', 'ACCOUNT XXXXXXXXXX'),  # With context
+            (r'(?i)(?:account\s+number|account\s+#)\s+\d{8,17}\b', 'ACCOUNT XXXXXXXXXX'),  # Table format
+            (r'(?i)(?:HIGH YIELD SAVINGS|SAVINGS|CHECKING)\s+\d{10,17}\b', 'ACCOUNT XXXXXXXXXX'),  # Account type + number
+            (r'\b\d{4}\s+\d{4}\s+\d{4}\b', 'XXXX XXXX XXXX'),  # Spaced format: 0008 6117 4372
+            (r'(?i)(?:banking|savings|checking).*?\b\d{4}\s+\d{4}\s+\d{4}\b', 'ACCOUNT XXXX XXXX XXXX'),  # Account type context with spaced number
+            (r'\b\d{10,11}\b(?=.*(?:\$|balance|savings|statement))', 'XXXXXXXXXX'),  # 10-11 digits with financial context
             (r'\b\d{12,17}\b', 'XXXXXXXXXX'),  # 12+ digits only (more conservative)
         ],
         
@@ -50,7 +55,8 @@ def get_financial_patterns() -> Dict[str, List[Tuple[str, str]]]:
         # Tax ID / EIN (XX-XXXXXXX)
         'tax_id': [(r'\b\d{2}-\d{7}\b', 'XX-XXXXXXX')],
         
-        # Currency amounts (various formats)
+        # Currency amounts (various formats) - excluding balance-related amounts
+        # Balance amounts will be filtered out during processing
         'currency': [
             (r'\$\s*\d{1,3}(?:,\d{3})*(?:\.\d{2})?', '$X,XXX.XX'),
             (r'\b\d{1,3}(?:,\d{3})*(?:\.\d{2})?(?=\s*(?:USD|dollars?))', 'X,XXX.XX'),
@@ -240,9 +246,17 @@ def get_nlp_name_patterns(text: str) -> List[Tuple[str, str]]:
         for name, start, end in detected_names:
             # Create exact match pattern for this specific name
             escaped_name = re.escape(name)
-            pattern = f"\\b{escaped_name}\\b"
-            name_patterns.append((pattern, '[FULL NAME]'))
-        
+
+            # 1. Exact pattern with word boundaries
+            exact_pattern = f"\\b{escaped_name}\\b"
+            name_patterns.append((exact_pattern, '[FULL NAME]'))
+
+            # 2. Extended pattern to catch variations like "STEPHENIE SYCHR P2P"
+            # Match the name followed by optional whitespace and alphanumeric/common suffixes
+            if ' ' in name:  # Only for multi-word names
+                extended_pattern = f"\\b{escaped_name}(?:\\s+[A-Z0-9P]+)*\\b"
+                name_patterns.append((extended_pattern, '[FULL NAME]'))
+
         return name_patterns
         
     except Exception as e:
@@ -311,29 +325,159 @@ def get_pattern_priority() -> Dict[str, int]:
     }
 
 
+# Pre-compiled balance keywords for performance
+_BALANCE_KEYWORDS = [
+    'beginning balance:', 'ending balance:', 'available balance:',
+    'current balance:', 'account balance:', 'total balance:',
+    'statement balance:', 'opening balance:', 'closing balance:',
+    'beginning balance ', 'ending balance ', 'available balance ',
+    'current balance ', 'account balance ', 'total balance ',
+    'statement balance ', 'opening balance ', 'closing balance ',
+    # Add keywords without colon/space for multi-line formats
+    'beginning balance', 'ending balance', 'available balance',
+    'current balance', 'account balance', 'total balance',
+    'statement balance', 'opening balance', 'closing balance'
+]
+
+def is_balance_amount(text: str, start_pos: int, full_text: str) -> bool:
+    """
+    Check if a currency match is a balance amount that should be preserved.
+    Optimized version with reduced string operations.
+
+    Args:
+        text: The matched currency text
+        start_pos: Starting position of the match in full_text
+        full_text: The complete text being processed
+
+    Returns:
+        True if this is a balance amount that should not be redacted
+    """
+    # Quick optimization: get smaller context first (50 chars instead of 200)
+    context_start = max(0, start_pos - 50)
+    before_context = full_text[context_start:start_pos].lower()
+
+    # Quick check with short context first
+    for keyword in _BALANCE_KEYWORDS:
+        if keyword in before_context:
+            return True
+
+    # Only do expensive line-based check if quick check failed
+    # Get current line context
+    line_start = full_text.rfind('\n', 0, start_pos) + 1
+    line_end = full_text.find('\n', start_pos + len(text))
+    if line_end == -1:
+        line_end = len(full_text)
+
+    # Only check line if it's different from what we already checked
+    if line_start < context_start:
+        line_context = full_text[line_start:start_pos].lower()
+        amount_pos_in_line = start_pos - line_start
+
+        for keyword in _BALANCE_KEYWORDS:
+            keyword_pos = line_context.find(keyword)
+            if keyword_pos != -1 and keyword_pos < amount_pos_in_line:
+                return True
+
+    return False
+
+
+def filter_balance_amounts(matches: List[Tuple[str, str, int, int, str]], full_text: str) -> List[Tuple[str, str, int, int, str]]:
+    """
+    Filter out balance amounts from currency matches.
+    Optimized version with early exit and reduced operations.
+
+    Args:
+        matches: List of (text, replacement, start, end, category) tuples
+        full_text: The complete text being processed
+
+    Returns:
+        Filtered list with balance amounts removed
+    """
+    # Early exit if no matches
+    if not matches:
+        return matches
+
+    # Quick check: if there are no currency matches, return as-is
+    has_currency = any(category == 'currency' for _, _, _, _, category in matches)
+    if not has_currency:
+        return matches
+
+    # Pre-lowercase the full text once
+    full_text_lower = full_text.lower()
+
+    # Quick check: if no balance keywords exist in the text, keep all currency matches
+    has_balance_keywords = any(keyword in full_text_lower for keyword in _BALANCE_KEYWORDS[:5])  # Check only first 5 keywords
+    if not has_balance_keywords:
+        return matches
+
+    filtered_matches = []
+
+    for text, replacement, start, end, category in matches:
+        # Only filter currency category matches
+        if category == 'currency':
+            if not is_balance_amount_optimized(text, start, full_text, full_text_lower):
+                filtered_matches.append((text, replacement, start, end, category))
+            # Skip balance amounts (don't add to filtered_matches)
+        else:
+            # Keep all non-currency matches
+            filtered_matches.append((text, replacement, start, end, category))
+
+    return filtered_matches
+
+
+def is_balance_amount_optimized(text: str, start_pos: int, full_text: str, full_text_lower: str) -> bool:
+    """
+    Optimized version of is_balance_amount that uses pre-lowercased text.
+    """
+    # Quick optimization: get smaller context first (50 chars instead of 200)
+    context_start = max(0, start_pos - 50)
+    before_context = full_text_lower[context_start:start_pos]
+
+    # Quick check with short context first
+    for keyword in _BALANCE_KEYWORDS:
+        if keyword in before_context:
+            return True
+
+    # Only do expensive line-based check if quick check failed
+    # Get current line context
+    line_start = full_text.rfind('\n', 0, start_pos) + 1
+
+    # Only check line if it's different from what we already checked
+    if line_start < context_start:
+        line_context = full_text_lower[line_start:start_pos]
+        amount_pos_in_line = start_pos - line_start
+
+        for keyword in _BALANCE_KEYWORDS:
+            keyword_pos = line_context.find(keyword)
+            if keyword_pos != -1 and keyword_pos < amount_pos_in_line:
+                return True
+
+    return False
+
+
 def resolve_overlapping_matches(all_matches: List[Tuple[str, str, int, int, str]]) -> List[Tuple[str, str, int, int, str]]:
     """
     Resolve overlapping pattern matches by priority.
-    
+
     Args:
         all_matches: List of (text, replacement, start, end, category) tuples
-        
+
     Returns:
         Filtered list with overlaps resolved by priority
     """
     if not all_matches:
         return all_matches
-        
+
     priority_order = get_pattern_priority()
-    
+
     # Sort by priority (lower number = higher priority), then by start position
     sorted_matches = sorted(all_matches, key=lambda x: (priority_order.get(x[4], 999), x[2]))
-    
+
     resolved_matches = []
-    
+
     for match in sorted_matches:
         text, replacement, start, end, category = match
-        
+
         # Check if this match overlaps with any already resolved match
         overlaps = False
         for resolved_text, resolved_replacement, resolved_start, resolved_end, resolved_category in resolved_matches:
@@ -341,10 +485,10 @@ def resolve_overlapping_matches(all_matches: List[Tuple[str, str, int, int, str]
             if not (end <= resolved_start or start >= resolved_end):
                 overlaps = True
                 break
-        
+
         # If no overlap, add this match
         if not overlaps:
             resolved_matches.append(match)
-    
+
     # Sort final results by position for consistent output
     return sorted(resolved_matches, key=lambda x: x[2])

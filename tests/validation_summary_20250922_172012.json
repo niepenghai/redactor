@@ -1,0 +1,266 @@
+{
+  "test_info": {
+    "timestamp": "20250922_172012",
+    "test_type": "PDF Redaction Validation Suite",
+    "config_file": "/Users/penghainie/1_code/redactor/tests/test_validation_config.json",
+    "success": true
+  },
+  "overall_results": {
+    "total_files": 2,
+    "successful_files": 2,
+    "failed_files": 0,
+    "total_patterns_tested": 28,
+    "total_patterns_passed": 13,
+    "overall_pass_rate": 46.43
+  },
+  "file_results": [
+    {
+      "filename": "SD - eStmt_2024-10-31.pdf",
+      "success": true,
+      "redaction_stats": {
+        "original_length": 21836,
+        "redacted_length": 22148,
+        "reduction_percentage": -1.43,
+        "patterns_tested": 14,
+        "patterns_passed": 6,
+        "patterns_failed": 8
+      },
+      "sensitive_data_findings": {
+        "STEPHENIE_SYCHR": {
+          "original_count": 0,
+          "redacted_count": 0,
+          "redaction_success_rate": 100,
+          "examples": []
+        },
+        "SSN_PATTERNS": {
+          "original_count": 0,
+          "redacted_count": 32,
+          "redaction_success_rate": 100,
+          "examples": []
+        },
+        "PHONE_NUMBERS": {
+          "original_count": 141,
+          "redacted_count": 160,
+          "redaction_success_rate": -13.48,
+          "examples": [
+            "6950988763",
+            "9111111101",
+            "5530725890"
+          ]
+        },
+        "EMAIL_ADDRESSES": {
+          "original_count": 0,
+          "redacted_count": 0,
+          "redaction_success_rate": 100,
+          "examples": []
+        },
+        "ACCOUNT_NUMBERS": {
+          "original_count": 0,
+          "redacted_count": 0,
+          "redaction_success_rate": 100,
+          "examples": []
+        },
+        "CREDIT_CARD_NUMBERS": {
+          "original_count": 0,
+          "redacted_count": 0,
+          "redaction_success_rate": 100,
+          "examples": []
+        },
+        "ADDRESSES": {
+          "original_count": 209,
+          "redacted_count": 199,
+          "redaction_success_rate": 4.78,
+          "examples": [
+            "5118\nALILY CORDERO\nDERRICK D CORD",
+            "14\nYour combined statement\nfor Oct",
+            "2024 to Oct"
+          ]
+        },
+        "ZIP_CODES": {
+          "original_count": 6,
+          "redacted_count": 1,
+          "redaction_success_rate": 83.33,
+          "examples": [
+            "25118",
+            "33622-5118",
+            "95304-5829"
+          ]
+        }
+      },
+      "failed_patterns": [
+        {
+          "pattern_name": "STEPHENIE_SYCHR",
+          "description": "Customer name STEPHENIE SYCHR",
+          "should_be_redacted": true,
+          "details": "Original: 0 matches, Redacted: 0 matches"
+        },
+        {
+          "pattern_name": "SSN_PATTERNS",
+          "description": "Social Security Numbers",
+          "should_be_redacted": true,
+          "details": "Original: 0 matches, Redacted: 32 matches"
+        },
+        {
+          "pattern_name": "PHONE_NUMBERS",
+          "description": "Phone numbers",
+          "should_be_redacted": true,
+          "details": "Original: 141 matches, Redacted: 160 matches. Still present: ['(444) 819-2465', '(444) 819-2465', '1877793948', '1877793948', '1877793948']"
+        },
+        {
+          "pattern_name": "EMAIL_ADDRESSES",
+          "description": "Email addresses",
+          "should_be_redacted": true,
+          "details": "Original: 0 matches, Redacted: 0 matches"
+        },
+        {
+          "pattern_name": "ACCOUNT_NUMBERS",
+          "description": "Account numbers",
+          "should_be_redacted": true,
+          "details": "Original: 0 matches, Redacted: 0 matches"
+        },
+        {
+          "pattern_name": "CREDIT_CARD_NUMBERS",
+          "description": "Credit card numbers",
+          "should_be_redacted": true,
+          "details": "Original: 0 matches, Redacted: 0 matches"
+        },
+        {
+          "pattern_name": "DOCUMENT_TITLES",
+          "description": "Document type words",
+          "should_be_redacted": false,
+          "details": "Original: 88 matches, Redacted: 87 matches. Lost: 1 matches"
+        },
+        {
+          "pattern_name": "MONTHS",
+          "description": "Month names",
+          "should_be_redacted": false,
+          "details": "Original: 33 matches, Redacted: 31 matches. Lost: 2 matches"
+        }
+      ]
+    },
+    {
+      "filename": "SD - 250325 Synchrony HYS 1773 (2)_redacted.pdf",
+      "success": true,
+      "redaction_stats": {
+        "original_length": 6986,
+        "redacted_length": 6931,
+        "reduction_percentage": 0.79,
+        "patterns_tested": 14,
+        "patterns_passed": 7,
+        "patterns_failed": 7
+      },
+      "sensitive_data_findings": {
+        "STEPHENIE_SYCHR": {
+          "original_count": 18,
+          "redacted_count": 1,
+          "redaction_success_rate": 94.44,
+          "examples": [
+            "STEPHENIE SYCHR",
+            "STEPHENIE SYCHR",
+            "STEPHENIE SYCHR"
+          ]
+        },
+        "SSN_PATTERNS": {
+          "original_count": 1,
+          "redacted_count": 1,
+          "redaction_success_rate": 0.0,
+          "examples": [
+            "956-51-5760"
+          ]
+        },
+        "PHONE_NUMBERS": {
+          "original_count": 6,
+          "redacted_count": 7,
+          "redaction_success_rate": -16.67,
+          "examples": [
+            "6003981773",
+            "(444) 942-9713",
+            "(555) 363-9653"
+          ]
+        },
+        "EMAIL_ADDRESSES": {
+          "original_count": 0,
+          "redacted_count": 0,
+          "redaction_success_rate": 100,
+          "examples": []
+        },
+        "ACCOUNT_NUMBERS": {
+          "original_count": 0,
+          "redacted_count": 2,
+          "redaction_success_rate": 100,
+          "examples": []
+        },
+        "CREDIT_CARD_NUMBERS": {
+          "original_count": 0,
+          "redacted_count": 0,
+          "redaction_success_rate": 100,
+          "examples": []
+        },
+        "ADDRESSES": {
+          "original_count": 12,
+          "redacted_count": 16,
+          "redaction_success_rate": -33.33,
+          "examples": [
+            "1773\nAccount Summary\nInterest",
+            "00\nInterest",
+            "24\nInterest"
+          ]
+        },
+        "ZIP_CODES": {
+          "original_count": 3,
+          "redacted_count": 0,
+          "redaction_success_rate": 100.0,
+          "examples": [
+            "94552-9687",
+            "15567-4403",
+            "15567-4403"
+          ]
+        }
+      },
+      "failed_patterns": [
+        {
+          "pattern_name": "SSN_PATTERNS",
+          "description": "Social Security Numbers",
+          "should_be_redacted": true,
+          "details": "Original: 1 matches, Redacted: 1 matches. Still present: ['922-87-3813']"
+        },
+        {
+          "pattern_name": "PHONE_NUMBERS",
+          "description": "Phone numbers",
+          "should_be_redacted": true,
+          "details": "Original: 6 matches, Redacted: 7 matches. Still present: ['(333) 992-2337', '6371569453', '6371569453', '(333) 992-2337', '(333) 992-2337']"
+        },
+        {
+          "pattern_name": "EMAIL_ADDRESSES",
+          "description": "Email addresses",
+          "should_be_redacted": true,
+          "details": "Original: 0 matches, Redacted: 0 matches"
+        },
+        {
+          "pattern_name": "ACCOUNT_NUMBERS",
+          "description": "Account numbers",
+          "should_be_redacted": true,
+          "details": "Original: 0 matches, Redacted: 2 matches"
+        },
+        {
+          "pattern_name": "CREDIT_CARD_NUMBERS",
+          "description": "Credit card numbers",
+          "should_be_redacted": true,
+          "details": "Original: 0 matches, Redacted: 0 matches"
+        },
+        {
+          "pattern_name": "ADDRESSES",
+          "description": "Street addresses",
+          "should_be_redacted": true,
+          "details": "Original: 12 matches, Redacted: 16 matches. Still present: ['1773\\nAccount Summary\\nInterest', '00\\nInterest', '24\\nInterest', '84\\nInterest', '09\\n \\nAccount\\nActivity\\nPost\\nDate\\nEffect']"
+        },
+        {
+          "pattern_name": "BALANCE_AMOUNTS",
+          "description": "Balance amounts that should be preserved",
+          "should_be_redacted": false,
+          "details": "Original: 4 matches, Redacted: 5 matches. Lost: -1 matches"
+        }
+      ]
+    }
+  ]
+}

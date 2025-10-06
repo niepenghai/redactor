@@ -1,0 +1,124 @@
+{
+  "validation_config": {
+    "description": "Configuration for PDF redaction validation tests",
+    "input_folder": "/Users/penghainie/1_code/redactor/data/input/redacted_pdfs_from_lei_with_issues",
+    "output_folder": "/Users/penghainie/1_code/redactor/tests/output",
+
+    "should_be_redacted": {
+      "description": "Content that MUST be redacted (sensitive information)",
+      "patterns": [
+        {
+          "name": "STEPHENIE_SYCHR",
+          "pattern": "STEPHENIE\\s+SYCHR?(?:\\s+\\w+)?",
+          "description": "Customer name STEPHENIE SYCHR (including variants like STEPHENIE SYCHR P2P)",
+          "case_sensitive": false
+        },
+        {
+          "name": "SSN_PATTERNS",
+          "pattern": "\\b\\d{3}-\\d{2}-\\d{4}\\b",
+          "description": "Social Security Numbers",
+          "case_sensitive": false
+        },
+        {
+          "name": "PHONE_NUMBERS",
+          "pattern": "\\(?\\d{3}\\)?[-\\s]?\\d{3}[-\\s]?\\d{4}",
+          "description": "Phone numbers",
+          "case_sensitive": false
+        },
+        {
+          "name": "EMAIL_ADDRESSES",
+          "pattern": "[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}",
+          "description": "Email addresses",
+          "case_sensitive": false
+        },
+        {
+          "name": "ACCOUNT_NUMBERS",
+          "pattern": "\\b\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b",
+          "description": "Account numbers",
+          "case_sensitive": false
+        },
+        {
+          "name": "CREDIT_CARD_NUMBERS",
+          "pattern": "\\b(?:4\\d{3}|5[1-5]\\d{2}|6011|3[47]\\d{2})[\\s-]?\\d{4}[\\s-]?\\d{4}[\\s-]?\\d{4}\\b",
+          "description": "Credit card numbers",
+          "case_sensitive": false
+        },
+        {
+          "name": "ADDRESSES",
+          "pattern": "\\d+\\s+[A-Za-z\\s]+(?:Street|St|Avenue|Ave|Road|Rd|Drive|Dr|Lane|Ln|Boulevard|Blvd|Circle|Cir|Court|Ct)",
+          "description": "Street addresses",
+          "case_sensitive": false
+        },
+        {
+          "name": "ZIP_CODES",
+          "pattern": "\\b\\d{5}(?:-\\d{4})?\\b",
+          "description": "ZIP codes",
+          "case_sensitive": false
+        }
+      ]
+    },
+
+    "should_not_be_redacted": {
+      "description": "Content that should NOT be redacted (safe information)",
+      "patterns": [
+        {
+          "name": "BANK_NAME",
+          "pattern": "Synchrony Bank",
+          "description": "Bank name should remain visible",
+          "case_sensitive": false
+        },
+        {
+          "name": "DOCUMENT_TITLES",
+          "pattern": "(?:Statement|Account|Summary|Balance|Transaction|Deposit|Withdrawal)",
+          "description": "Document type words",
+          "case_sensitive": false
+        },
+        {
+          "name": "COMMON_WORDS",
+          "pattern": "\\b(?:Date|Amount|Description|Balance|Total|Current|Available|Previous|New)\\b",
+          "description": "Common banking terms",
+          "case_sensitive": false
+        },
+        {
+          "name": "CURRENCY_SYMBOLS",
+          "pattern": "\\$|USD",
+          "description": "Currency symbols",
+          "case_sensitive": false
+        },
+        {
+          "name": "MONTHS",
+          "pattern": "\\b(?:January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\\b",
+          "description": "Month names",
+          "case_sensitive": false
+        },
+        {
+          "name": "BALANCE_AMOUNTS",
+          "pattern": "(?:Beginning Balance|Ending Balance|Current Balance|Available Balance|Account Balance)\\s*:?\\s*\\$[\\d,]+\\.\\d{2}",
+          "description": "Balance amounts that should be preserved",
+          "case_sensitive": false
+        }
+      ]
+    },
+
+    "test_settings": {
+      "description": "Test execution settings",
+      "replacement_mode": "realistic",
+      "enabled_categories": {
+        "names": true,
+        "ssn": true,
+        "phone": true,
+        "email": true,
+        "account_number": true,
+        "credit_card": true,
+        "address": true,
+        "currency": false,
+        "dates": false,
+        "routing_number": true,
+        "tax_id": true,
+        "employer": true
+      },
+      "max_files_to_test": 5,
+      "save_detailed_reports": true
+    }
+  }
+}
