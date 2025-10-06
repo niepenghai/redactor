@@ -291,7 +291,8 @@ def detect_names_simple(text: str) -> List[Tuple[str, int, int]]:
 # Try to import spaCy for more advanced NLP, fall back to simple detector
 try:
     import spacy
-    
+    SPACY_AVAILABLE = True
+
     class SpacyNameDetector:
         """Advanced name detector using spaCy NLP."""
 
@@ -819,7 +820,22 @@ try:
             return detect_names_simple(text)
 
 except ImportError:
-    # spaCy not available, define dummy function
+    # spaCy not available, define dummy classes and functions for Windows compatibility
+    SPACY_AVAILABLE = False
+    print("⚠️ spaCy not available - using SimpleNLPNameDetector for name detection")
+
+    class SpacyNameDetector:
+        """Fallback name detector when spaCy is not available."""
+
+        def __init__(self):
+            """Initialize with simple detector fallback."""
+            self.simple_detector = SimpleNLPNameDetector()
+            print("🔄 Using SimpleNLPNameDetector fallback (spaCy unavailable)")
+
+        def detect_names_in_text(self, text: str) -> List[NameDetection]:
+            """Fallback to simple name detection."""
+            return self.simple_detector.detect_names_in_text(text)
+
     def detect_names_nlp(text: str) -> List[Tuple[str, int, int]]:
         """Fallback to simple name detection."""
         return detect_names_simple(text)
