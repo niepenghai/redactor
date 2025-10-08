@@ -19,7 +19,14 @@ class EnhancedRedactorGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("📄 PDF Document Redactor - Enhanced Edition")
-        self.root.geometry("1000x800")
+
+        # Set minimum window size and make it resizable
+        self.root.minsize(1000, 700)
+        self.root.geometry("1200x900")  # Larger default size for Windows
+
+        # Configure window to be properly resizable
+        self.root.rowconfigure(0, weight=1)
+        self.root.columnconfigure(0, weight=1)
         
         # Initialize redactor with realistic mode by default
         self.redactor = FinancialDocumentRedactor()
@@ -38,9 +45,16 @@ class EnhancedRedactorGUI:
         self.log_message("📋 Select PDF files to get started!")
     
     def setup_ui(self):
-        # Main frame with padding
-        main_frame = ttk.Frame(self.root, padding="15")
-        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        # Create top content frame and bottom button frame for better layout
+        content_frame = ttk.Frame(self.root)
+        content_frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        button_frame = ttk.Frame(self.root)
+        button_frame.pack(fill="x", padx=10, pady=(0, 10))
+
+        # Main frame with padding in content area
+        main_frame = ttk.Frame(content_frame, padding="15")
+        main_frame.pack(fill="both", expand=True)
         
         # Title with icon
         title_frame = ttk.Frame(main_frame)
@@ -169,24 +183,21 @@ class EnhancedRedactorGUI:
         self.output_label = ttk.Label(output_btn_frame, text="No folder selected", font=("Arial", 10))
         self.output_label.grid(row=0, column=1, sticky=tk.W)
         
-        # Process button and progress
-        process_frame = ttk.Frame(main_frame)
-        process_frame.grid(row=4, column=0, columnspan=2, pady=20)
-        
-        self.preview_btn = ttk.Button(process_frame, text="👁️ Preview Detection", 
+        # Move buttons to dedicated bottom frame for Windows compatibility
+        self.preview_btn = ttk.Button(button_frame, text="👁️ Preview Detection",
                                      command=self.preview_detection, state="disabled")
-        self.preview_btn.grid(row=0, column=0, padx=(0, 10))
-        
-        self.process_btn = ttk.Button(process_frame, text="🔒 Process Documents", 
+        self.preview_btn.pack(side="left", padx=(0, 10))
+
+        self.process_btn = ttk.Button(button_frame, text="🔒 Process Documents",
                                      command=self.process_files, state="disabled")
-        self.process_btn.grid(row=0, column=1, padx=(10, 5))
+        self.process_btn.pack(side="left", padx=(0, 10))
+
+        self.progress = ttk.Progressbar(button_frame, length=200, mode='indeterminate')
+        self.progress.pack(side="left", padx=(10, 0))
         
-        self.progress = ttk.Progressbar(process_frame, length=200, mode='indeterminate')
-        self.progress.grid(row=0, column=2, padx=(10, 0))
-        
-        # Results area with tabs
+        # Results area with tabs - now at row 4 since buttons moved to bottom
         results_frame = ttk.LabelFrame(main_frame, text="📊 Processing Results", padding="15")
-        results_frame.grid(row=5, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 15))
+        results_frame.grid(row=4, column=0, columnspan=2, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 15))
         
         # Create notebook for different views
         self.notebook = ttk.Notebook(results_frame)
@@ -196,7 +207,7 @@ class EnhancedRedactorGUI:
         preview_frame = ttk.Frame(self.notebook)
         self.notebook.add(preview_frame, text="👁️ Detection Preview")
         
-        self.preview_text = scrolledtext.ScrolledText(preview_frame, height=15, state="disabled", 
+        self.preview_text = scrolledtext.ScrolledText(preview_frame, height=10, state="disabled",
                                                      font=("Courier", 9))
         self.preview_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
@@ -204,7 +215,7 @@ class EnhancedRedactorGUI:
         log_frame = ttk.Frame(self.notebook)
         self.notebook.add(log_frame, text="📝 Processing Log")
         
-        self.results_text = scrolledtext.ScrolledText(log_frame, height=15, state="disabled", 
+        self.results_text = scrolledtext.ScrolledText(log_frame, height=10, state="disabled",
                                                      font=("Courier", 10))
         self.results_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
@@ -212,7 +223,7 @@ class EnhancedRedactorGUI:
         details_frame = ttk.Frame(self.notebook)
         self.notebook.add(details_frame, text="🔍 Redaction Details")
         
-        self.details_text = scrolledtext.ScrolledText(details_frame, height=15, state="disabled", 
+        self.details_text = scrolledtext.ScrolledText(details_frame, height=10, state="disabled",
                                                      font=("Courier", 9))
         self.details_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
@@ -220,14 +231,12 @@ class EnhancedRedactorGUI:
         summary_frame = ttk.Frame(self.notebook)
         self.notebook.add(summary_frame, text="📈 Summary")
         
-        self.summary_text = scrolledtext.ScrolledText(summary_frame, height=15, state="disabled", 
+        self.summary_text = scrolledtext.ScrolledText(summary_frame, height=10, state="disabled",
                                                      font=("Arial", 10))
         self.summary_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         
         # Configure grid weights for proper resizing
-        self.root.grid_rowconfigure(0, weight=1)
-        self.root.grid_columnconfigure(0, weight=1)
-        main_frame.grid_rowconfigure(5, weight=1)
+        main_frame.grid_rowconfigure(4, weight=1)  # Results frame gets expansion
         main_frame.grid_columnconfigure(0, weight=1)
         results_frame.grid_rowconfigure(0, weight=1)
         results_frame.grid_columnconfigure(0, weight=1)
