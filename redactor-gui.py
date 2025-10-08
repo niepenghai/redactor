@@ -184,12 +184,13 @@ class EnhancedRedactorGUI:
         self.output_label.grid(row=0, column=1, sticky=tk.W)
         
         # Move buttons to dedicated bottom frame for Windows compatibility
+        # Buttons are now always visible (enabled based on file selection)
         self.preview_btn = ttk.Button(button_frame, text="👁️ Preview Detection",
-                                     command=self.preview_detection, state="disabled")
+                                     command=self.preview_detection, state="normal")
         self.preview_btn.pack(side="left", padx=(0, 10))
 
         self.process_btn = ttk.Button(button_frame, text="🔒 Process Documents",
-                                     command=self.process_files, state="disabled")
+                                     command=self.process_files, state="normal")
         self.process_btn.pack(side="left", padx=(0, 10))
 
         self.progress = ttk.Progressbar(button_frame, length=200, mode='indeterminate')
@@ -332,17 +333,19 @@ class EnhancedRedactorGUI:
     
     def check_ready(self):
         """Check if ready to process and update buttons."""
+        # Always keep buttons visible and enabled for better user experience
         if self.selected_files and not self.processing:
             count = len(self.selected_files)
             self.preview_btn.config(state="normal", text=f"👁️ Preview {count} File(s)")
-            
+
             if self.output_folder:
                 self.process_btn.config(state="normal", text=f"🔒 Process {count} File(s)")
             else:
-                self.process_btn.config(state="disabled", text="🔒 Process Documents")
+                self.process_btn.config(state="normal", text="🔒 Process Documents")
         else:
-            self.preview_btn.config(state="disabled", text="👁️ Preview Detection")
-            self.process_btn.config(state="disabled", text="🔒 Process Documents")
+            # Keep buttons visible but show helpful text
+            self.preview_btn.config(state="normal", text="👁️ Preview Detection")
+            self.process_btn.config(state="normal", text="🔒 Process Documents")
     
     def log_message(self, message):
         """Add message to processing log."""
@@ -507,7 +510,21 @@ class EnhancedRedactorGUI:
         """Start processing files in background thread."""
         if self.processing:
             return
-        
+
+        # Check if files are selected
+        if not self.selected_files:
+            messagebox.showwarning("No Files Selected",
+                                 "Please select PDF files to process first.\n\n"
+                                 "Click '📂 Select PDF Files' to choose files.")
+            return
+
+        # Check if output folder is selected
+        if not self.output_folder:
+            messagebox.showwarning("No Output Folder",
+                                 "Please select an output folder first.\n\n"
+                                 "Click '📁 Select Output Folder' to choose where to save redacted files.")
+            return
+
         thread = threading.Thread(target=self._process_files_thread)
         thread.daemon = True
         thread.start()
@@ -782,9 +799,13 @@ class EnhancedRedactorGUI:
 
     def preview_detection(self):
         """Preview what content will be detected and replaced."""
+        # Check if files are selected
         if not self.selected_files:
+            messagebox.showwarning("No Files Selected",
+                                 "Please select PDF files to preview first.\n\n"
+                                 "Click '📂 Select PDF Files' to choose files for preview.")
             return
-        
+
         # Start preview in background thread
         thread = threading.Thread(target=self._preview_detection_thread)
         thread.daemon = True
