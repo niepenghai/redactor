@@ -39,11 +39,30 @@ def main():
     if len(sys.argv) == 1:
         # No arguments, launch GUI
         try:
-            from subprocess import run
-            run([sys.executable, 'redactor-gui.py'])
+            # Import and launch GUI directly
+            import tkinter as tk
+            import os
+
+            # Add current directory to path for imports
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+            # Import the GUI class (handle hyphenated module name)
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("redactor_gui", "redactor-gui.py")
+            redactor_gui_module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(redactor_gui_module)
+            EnhancedRedactorGUI = redactor_gui_module.EnhancedRedactorGUI
+
+            # Launch GUI
+            root = tk.Tk()
+            app = EnhancedRedactorGUI(root)
+            root.mainloop()
+
         except Exception as e:
             print(f"Error launching GUI: {e}")
             print("Try running: python redactor-gui.py")
+            import traceback
+            traceback.print_exc()
     else:
         args = parser.parse_args()
         if args.help_all:
