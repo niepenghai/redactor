@@ -45,16 +45,27 @@ class EnhancedRedactorGUI:
         self.log_message("📋 Select PDF files to get started!")
     
     def setup_ui(self):
-        # Create top content frame and bottom button frame for better layout
-        content_frame = ttk.Frame(self.root)
-        content_frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Use grid layout for better control - this is more reliable than pack
+        self.root.grid_rowconfigure(0, weight=1)  # Content expands
+        self.root.grid_rowconfigure(1, weight=0)  # Separator
+        self.root.grid_rowconfigure(2, weight=0)  # Buttons fixed size
+        self.root.grid_columnconfigure(0, weight=1)
 
-        button_frame = ttk.Frame(self.root)
-        button_frame.pack(fill="x", padx=10, pady=(0, 10))
+        # Main content frame (expandable)
+        main_frame = ttk.Frame(self.root, padding="15")
+        main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
 
-        # Main frame with padding in content area
-        main_frame = ttk.Frame(content_frame, padding="15")
-        main_frame.pack(fill="both", expand=True)
+        # Separator between content and buttons
+        separator = ttk.Separator(self.root, orient="horizontal")
+        separator.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=5)
+
+        # Button frame at bottom (fixed size, always visible)
+        button_frame = ttk.LabelFrame(self.root, text="🎯 Actions", padding="10")
+        button_frame.grid(row=2, column=0, sticky=(tk.W, tk.E), padx=10, pady=5)
+        button_frame.grid_columnconfigure(2, weight=1)  # Space filler
+
+        # Store button_frame for later use
+        self.button_frame = button_frame
         
         # Title with icon
         title_frame = ttk.Frame(main_frame)
@@ -183,18 +194,17 @@ class EnhancedRedactorGUI:
         self.output_label = ttk.Label(output_btn_frame, text="No folder selected", font=("Arial", 10))
         self.output_label.grid(row=0, column=1, sticky=tk.W)
         
-        # Move buttons to dedicated bottom frame for Windows compatibility
-        # Buttons are now always visible (enabled based on file selection)
-        self.preview_btn = ttk.Button(button_frame, text="👁️ Preview Detection",
+        # Create buttons in the bottom frame using grid for reliable positioning
+        self.preview_btn = ttk.Button(self.button_frame, text="👁️ Preview Detection",
                                      command=self.preview_detection, state="normal")
-        self.preview_btn.pack(side="left", padx=(0, 10))
+        self.preview_btn.grid(row=0, column=0, padx=(0, 10), pady=5)
 
-        self.process_btn = ttk.Button(button_frame, text="🔒 Process Documents",
+        self.process_btn = ttk.Button(self.button_frame, text="🔒 Process Documents",
                                      command=self.process_files, state="normal")
-        self.process_btn.pack(side="left", padx=(0, 10))
+        self.process_btn.grid(row=0, column=1, padx=(0, 10), pady=5)
 
-        self.progress = ttk.Progressbar(button_frame, length=200, mode='indeterminate')
-        self.progress.pack(side="left", padx=(10, 0))
+        self.progress = ttk.Progressbar(self.button_frame, length=200, mode='indeterminate')
+        self.progress.grid(row=0, column=3, padx=(10, 0), pady=5)
         
         # Results area with tabs - now at row 4 since buttons moved to bottom
         results_frame = ttk.LabelFrame(main_frame, text="📊 Processing Results", padding="15")
