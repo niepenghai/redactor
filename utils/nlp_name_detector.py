@@ -100,7 +100,11 @@ class SimpleNLPNameDetector:
             'Investment', 'Holdings', 'Partners', 'Associates', 'Solutions', 'Technologies',
             'Systems', 'Networks', 'Communications', 'Insurance', 'Wells', 'Fargo', 'Chase',
             'Citibank', 'America', 'National', 'First', 'United', 'State', 'Federal',
-            'Regional', 'Community', 'Central', 'Mutual', 'Savings', 'Loan'
+            'Regional', 'Community', 'Central', 'Mutual', 'Savings', 'Loan',
+            # Financial/payroll terms that look like names
+            'Gross', 'Pay', 'Net', 'Wage', 'Salary', 'Income', 'Earnings', 'Total',
+            'Amount', 'Balance', 'Deduction', 'Tax', 'Withholding', 'Rate', 'Hours',
+            'Overtime', 'Regular', 'Current', 'Year', 'Date', 'Period', 'Check'
         }
     
     def detect_names_in_text(self, text: str) -> List[NameDetection]:
@@ -209,8 +213,8 @@ class SimpleNLPNameDetector:
             last_score = 1.0 if last.title() in self.last_names else 0.0
             
             # Check for business/financial terms in either position
-            business_first_words = {'Account', 'Customer', 'Service', 'Banking', 'Online', 'Mobile', 'Direct', 'Total', 'Current', 'Available', 'Wells', 'Main', 'First', 'Second', 'Third'}
-            business_last_words = {'Number', 'Balance', 'Summary', 'Statement', 'Service', 'Banking', 'Deposit', 'Withdrawal', 'Transfer', 'Street', 'Avenue', 'Road', 'Drive', 'Fargo'}
+            business_first_words = {'Account', 'Customer', 'Service', 'Banking', 'Online', 'Mobile', 'Direct', 'Total', 'Current', 'Available', 'Wells', 'Main', 'First', 'Second', 'Third', 'Gross', 'Net', 'Regular', 'Overtime'}
+            business_last_words = {'Number', 'Balance', 'Summary', 'Statement', 'Service', 'Banking', 'Deposit', 'Withdrawal', 'Transfer', 'Street', 'Avenue', 'Road', 'Drive', 'Fargo', 'Pay', 'Wage', 'Salary', 'Income', 'Amount', 'Tax', 'Rate', 'Hours', 'Period', 'Date', 'Year'}
             
             if first in business_first_words or last in business_last_words:
                 return 0.0, "BUSINESS_TERM"
@@ -336,28 +340,40 @@ try:
             """Check if a text looks like a person name."""
             if not name or len(name.strip()) < 2:
                 return False
-                
+
             # Should have alphabetic characters and spaces
             if not re.match(r'^[A-Za-z\s\-\'\.]+$', name):
                 return False
-                
+
             # Should not be all numbers or have too many numbers
             if any(char.isdigit() for char in name):
                 return False
-                
+
             # Split into words and check basic name patterns
             words = name.strip().split()
             if len(words) < 1 or len(words) > 4:  # Names typically 1-4 words
                 return False
-                
+
+            # Financial/payroll terms that should never be person names
+            financial_terms = {
+                'gross', 'pay', 'net', 'wage', 'salary', 'income', 'earnings',
+                'total', 'amount', 'balance', 'deduction', 'tax', 'withholding',
+                'rate', 'hours', 'overtime', 'regular', 'current', 'year', 'date',
+                'period', 'check', 'account', 'number', 'summary', 'statement'
+            }
+
             # Each word should look like a name part
             for word in words:
                 if len(word) < 1:
                     continue
                 # Should not be obvious non-name words
-                if word.lower() in ['st', 'street', 'ave', 'avenue', 'rd', 'road', 'dr', 'drive', 'ca', 'tx', 'ny', 'fl']:
+                word_lower = word.lower().rstrip('.')
+                if word_lower in ['st', 'street', 'ave', 'avenue', 'rd', 'road', 'dr', 'drive', 'ca', 'tx', 'ny', 'fl']:
                     return False
-                    
+                # Check financial terms
+                if word_lower in financial_terms:
+                    return False
+
             return True
 
         def _looks_like_address(self, text: str) -> bool:
