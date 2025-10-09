@@ -114,6 +114,47 @@ jobs:
 
         # Test completed - all platforms ready for build
 
+    # Test spaCy singleton and V2 detectors
+    - name: Test spaCy singleton and V2 detectors
+      run: |
+        python -c "
+from utils.spacy_singleton import get_spacy_model
+from utils.name_detector_v2 import NameDetectorV2
+from utils.address_detector_v2 import AddressDetectorV2
+
+print('Testing spaCy singleton...')
+model1 = get_spacy_model()
+model2 = get_spacy_model()
+
+if model1 is None:
+    print('⚠️  spaCy model not loaded - will use pattern-only detection')
+else:
+    print(f'✅ spaCy model loaded: {type(model1).__name__}')
+    if model1 is model2:
+        print('✅ Singleton pattern working - same instance returned')
+    else:
+        print('❌ Singleton pattern NOT working - different instances!')
+        exit(1)
+
+print('\\nTesting Name Detector V2...')
+name_detector = NameDetectorV2()
+if name_detector.nlp is None:
+    print('⚠️  Name detector using pattern-only mode')
+else:
+    print('✅ Name detector initialized with spaCy model')
+
+print('\\nTesting Address Detector V2...')
+addr_detector = AddressDetectorV2()
+if addr_detector.nlp is None:
+    print('⚠️  Address detector using pattern-only mode')
+else:
+    print('✅ Address detector initialized with spaCy model')
+
+print('\\n✅ All V2 detectors initialized successfully')
+"
+      shell: bash
+      continue-on-error: false  # Fail if detectors can't initialize
+
     - name: Build executable (Windows)
       if: runner.os == 'Windows'
       run: |
